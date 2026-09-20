@@ -1,0 +1,50 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Language {
+  code           String   @id // ISO-ish short code, e.g. "zh"
+  name           String // e.g. "Chinese"
+  defaultVoiceId String? // TTS voice id used for this language, e.g. "zf_xiaobei"
+  words          Word[]
+  createdAt      DateTime @default(now())
+}
+
+model Word {
+  id           String   @id @default(cuid())
+  languageCode String
+  language     Language @relation(fields: [languageCode], references: [code])
+
+  nativeText   String // script text, e.g. "谢谢"
+  romanization String // e.g. pinyin with tone marks: "xièxie" -- always server-computed, never trusted from the LLM
+  phonetic     String // English-reader-friendly respelling, e.g. "syeh-syeh" -- LLM-generated
+  englishGloss String // natural, commonly-used translation (can be unstructured, e.g. "thanks (casual)")
+  usageNote    String? // short context note: how/when it's actually used
+
+  audioClipId String?
+  audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([languageCode, nativeText, englishGloss])
+  @@index([languageCode])
+}
+
+model AudioClip {
+  id           String   @id @default(cuid())
+  languageCode String
+  text         String // exact text sent to the TTS model
+  voiceId      String
+  audioData    Bytes
+  mimeType     String
+  createdAt    DateTime @default(now())
+  words        Word[]
+
+  @@unique([languageCode, text, voiceId])
+}
