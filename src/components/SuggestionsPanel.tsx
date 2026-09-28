@@ -120,7 +120,7 @@ export function SuggestionsPanel({
           disabled={!quickInput.trim()}
           className="shrink-0 px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
         >
-          Add word
+          Find translations
         </button>
       </form>
 
