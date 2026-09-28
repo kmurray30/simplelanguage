@@ -40,11 +40,11 @@ async function verifyDeepInfra() {
   }
 }
 
-async function verifyOpenAI() {
+async function verifyOpenAIRaw() {
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL || "gpt-5.6-luna";
   if (!apiKey) {
-    console.log("[verify:openai] OPENAI_API_KEY not set, skipping");
+    console.log("[verify:openai-raw] OPENAI_API_KEY not set, skipping");
     return;
   }
   try {
@@ -54,20 +54,39 @@ async function verifyOpenAI() {
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: "Reply with exactly: OK" }],
-        max_tokens: 5,
+        max_completion_tokens: 20,
       }),
     });
     const text = await res.text();
-    console.log(`[verify:openai] model=${model} status=${res.status}`);
-    console.log(`[verify:openai] body (first 1000 chars): ${text.slice(0, 1000)}`);
+    console.log(`[verify:openai-raw] model=${model} status=${res.status}`);
+    console.log(`[verify:openai-raw] body (first 1000 chars, newlines stripped): ${text.replace(/\n/g, " ").slice(0, 1000)}`);
   } catch (e) {
-    console.log(`[verify:openai] request failed: ${e instanceof Error ? e.message : e}`);
+    console.log(`[verify:openai-raw] request failed: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
+async function verifyOpenAIStructured() {
+  if (!process.env.OPENAI_API_KEY) {
+    console.log("[verify:openai-structured] OPENAI_API_KEY not set, skipping");
+    return;
+  }
+  try {
+    const { generateTranslationCandidates } = await import("../src/lib/openai");
+    const result = await generateTranslationCandidates("thank you (informal)", "en2zh");
+    console.log(
+      `[verify:openai-structured] SUCCESS, newlines stripped: ${JSON.stringify(result).replace(/\n/g, " ").slice(0, 1500)}`,
+    );
+  } catch (e) {
+    console.log(
+      `[verify:openai-structured] FAILED, newlines stripped: ${(e instanceof Error ? e.message : String(e)).replace(/\n/g, " ").slice(0, 1500)}`,
+    );
   }
 }
 
 async function main() {
   await verifyDeepInfra();
-  await verifyOpenAI();
+  await verifyOpenAIRaw();
+  await verifyOpenAIStructured();
 }
 
 main();
