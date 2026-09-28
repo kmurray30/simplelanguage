@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { WordRow } from "./WordRow";
+import { useState } from "react";
+import { KnownWordsPanel } from "./KnownWordsPanel";
 import { AddWordDialog } from "./AddWordDialog";
 import { EditWordDialog } from "./EditWordDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -9,24 +9,16 @@ import { SuggestionsPanel } from "./SuggestionsPanel";
 import { deleteWord } from "@/lib/api-client";
 import type { SuggestionItem, TranslationCandidate, Word } from "@/types";
 
+type AddSeed = { prefill: TranslationCandidate | null; initialInput: string | null };
+const BLANK_SEED: AddSeed = { prefill: null, initialInput: null };
+
 export function WordListView({ initialWords }: { initialWords: Word[] }) {
   const [words, setWords] = useState<Word[]>(initialWords);
-  const [query, setQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
-  const [addPrefill, setAddPrefill] = useState<TranslationCandidate | null>(null);
+  const [addSeed, setAddSeed] = useState<AddSeed>(BLANK_SEED);
+  const [quickInput, setQuickInput] = useState("");
   const [editingWord, setEditingWord] = useState<Word | null>(null);
   const [deletingWord, setDeletingWord] = useState<Word | null>(null);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return words;
-    return words.filter(
-      (w) =>
-        w.nativeText.includes(q) ||
-        w.romanization.toLowerCase().includes(q) ||
-        w.englishGloss.toLowerCase().includes(q),
-    );
-  }, [words, query]);
 
   function handleCreated(word: Word) {
     setWords((prev) => [word, ...prev]);
@@ -43,9 +35,23 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
     });
   }
 
-  function handlePickSuggestion(item: SuggestionItem) {
-    setAddPrefill(item);
+  function openBlank() {
+    setAddSeed(BLANK_SEED);
     setAddOpen(true);
+  }
+
+  function handlePickSuggestion(item: SuggestionItem) {
+    setAddSeed({ prefill: item, initialInput: null });
+    setAddOpen(true);
+  }
+
+  function handleQuickAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const text = quickInput.trim();
+    if (!text) return;
+    setAddSeed({ prefill: null, initialInput: text });
+    setAddOpen(true);
+    setQuickInput("");
   }
 
   return (
@@ -58,45 +64,37 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
           </p>
         </div>
         <button
-          onClick={() => {
-            setAddPrefill(null);
-            setAddOpen(true);
-          }}
+          onClick={openBlank}
           className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity shrink-0"
         >
           + Add word
         </button>
       </div>
 
-      {words.length > 0 && (
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search your words…"
-          className="w-full rounded-full border border-border bg-surface px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-        />
-      )}
+      <KnownWordsPanel
+        words={words}
+        onEdit={(word) => setEditingWord(word)}
+        onDelete={(word) => setDeletingWord(word)}
+      />
 
-      <div className="space-y-2">
-        {filtered.map((word) => (
-          <WordRow
-            key={word.id}
-            word={word}
-            onEdit={() => setEditingWord(word)}
-            onDelete={() => setDeletingWord(word)}
-          />
-        ))}
-        {words.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-border p-10 text-center text-sm text-foreground-muted">
-            No words yet. Add your first one, or get suggestions below to get started.
-          </div>
-        )}
-        {words.length > 0 && filtered.length === 0 && (
-          <div className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-foreground-muted">
-            No words match &ldquo;{query}&rdquo;.
-          </div>
-        )}
-      </div>
+      <form
+        onSubmit={handleQuickAdd}
+        className="rounded-2xl border border-border bg-surface p-3 flex gap-2"
+      >
+        <input
+          value={quickInput}
+          onChange={(e) => setQuickInput(e.target.value)}
+          placeholder="Type an English or Chinese word to add…"
+          className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+        />
+        <button
+          type="submit"
+          disabled={!quickInput.trim()}
+          className="shrink-0 px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
+        >
+          Add word
+        </button>
+      </form>
 
       <SuggestionsPanel
         words={words}
@@ -111,7 +109,8 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onCreated={handleCreated}
-        prefill={addPrefill}
+        prefill={addSeed.prefill}
+        initialInput={addSeed.initialInput}
       />
       <EditWordDialog word={editingWord} onClose={() => setEditingWord(null)} onUpdated={handleUpdated} />
       <ConfirmDialog

@@ -1,4 +1,8 @@
 import { z } from "zod";
+import { CATEGORY_VALUES } from "./categories";
+
+export const WordCategorySchema = z.enum(CATEGORY_VALUES);
+export type WordCategory = z.infer<typeof WordCategorySchema>;
 
 export const TranslationCandidateSchema = z.object({
   nativeText: z.string().min(1),
@@ -6,6 +10,7 @@ export const TranslationCandidateSchema = z.object({
   englishGloss: z.string().min(1),
   usageNote: z.string().min(1),
   confidence: z.number().min(0).max(1),
+  category: WordCategorySchema,
 });
 export type TranslationCandidate = z.infer<typeof TranslationCandidateSchema>;
 
@@ -39,6 +44,7 @@ export const WordCreateSchema = z.object({
   englishGloss: z.string().min(1),
   phonetic: z.string().min(1),
   usageNote: z.string().optional(),
+  category: WordCategorySchema,
 });
 
 export const WordUpdateSchema = z.object({
@@ -46,4 +52,16 @@ export const WordUpdateSchema = z.object({
   englishGloss: z.string().min(1).optional(),
   phonetic: z.string().min(1).optional(),
   usageNote: z.string().nullable().optional(),
+  category: WordCategorySchema.optional(),
 });
+
+export const CategorizeRequestItemSchema = z.object({
+  id: z.string().min(1),
+  nativeText: z.string().min(1),
+  englishGloss: z.string().min(1),
+});
+
+export const CategorizeResponseSchema = z.object({
+  items: z.array(z.object({ id: z.string().min(1), category: WordCategorySchema })),
+});
+export type CategorizeResponse = z.infer<typeof CategorizeResponseSchema>;

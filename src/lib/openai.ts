@@ -1,15 +1,22 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { OPENAI_MODEL } from "./constants";
+import { CATEGORIES } from "./categories";
 import {
   TranslateResponseSchema,
   SuggestionsResponseSchema,
+  CategorizeResponseSchema,
   type Direction,
   type TranslateResponse,
   type SuggestionsResponse,
+  type CategorizeResponse,
 } from "./schemas";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const CATEGORY_LIST_PROMPT = CATEGORIES.map((c) => `${c.value} (${c.label})`).join(", ");
+const CATEGORY_RULE = `- "category" must be exactly one of these normalized values, whichever fits best (use
+  OTHER only if nothing else reasonably applies): ${CATEGORY_LIST_PROMPT}.`;
 
 const TRANSLATOR_SYSTEM_PROMPT = `You are a Mandarin Chinese tutor helping an English-speaking student build a
 personal vocabulary list. You are given either an English phrase (possibly informal or
@@ -29,7 +36,8 @@ Rules:
 - "confidence" (0-1) reflects how well this candidate matches the requested word/phrase and
   how commonly it's actually used - not how fluent the phrasing sounds.
 - If given unstructured input like "thank you (silly and informal)", parse the intent and
-  the parenthetical qualifier and let it steer which candidates you propose.`;
+  the parenthetical qualifier and let it steer which candidates you propose.
+${CATEGORY_RULE}`;
 
 const SUGGESTIONS_SYSTEM_PROMPT = `You are a Mandarin Chinese tutor helping an English-speaking student expand
 their vocabulary. You are given the student's current word list (hanzi + English gloss).
@@ -39,7 +47,17 @@ include a one-sentence "whyNext" explaining why it's a good next word to learn.
 
 Same field rules as translation: natural glosses, English-reader-friendly "phonetic" (not
 pinyin), no romanization, one-sentence "usageNote", and "confidence" reflecting how commonly
-the word is actually used in real life.`;
+the word is actually used in real life.
+${CATEGORY_RULE}`;
+
+const CATEGORIZE_SYSTEM_PROMPT = `You are organizing a Mandarin Chinese vocabulary list into normalized
+learning-unit categories, the way a language course would group words into units (greetings,
+food, travel, etc). You are given a list of words (id, hanzi, English gloss). For each one,
+assign exactly one category id from this fixed list, whichever fits best - use OTHER only if
+nothing else reasonably applies:
+${CATEGORY_LIST_PROMPT}
+
+Return one item per input id - don't skip any, don't invent new ids.`;
 
 export async function generateTranslationCandidates(
   input: string,
@@ -87,5 +105,24 @@ export async function generateNextWordSuggestions(
 
   const parsed = completion.choices[0]?.message.parsed;
   if (!parsed) throw new Error("OpenAI returned no parsed suggestions response");
+  return parsed;
+}
+
+export async function categorizeWords(
+  words: { id: string; nativeText: string; englishGloss: string }[],
+): Promise<CategorizeResponse> {
+  const list = words.map((w) => `${w.id}: ${w.nativeText} (${w.englishGloss})`).join("\n");
+
+  const completion = await client.chat.completions.parse({
+    model: OPENAI_MODEL,
+    messages: [
+      { role: "system", content: CATEGORIZE_SYSTEM_PROMPT },
+      { role: "user", content: `Words:\n${list}` },
+    ],
+    response_format: zodResponseFormat(CategorizeResponseSchema, "categorize_response"),
+  });
+
+  const parsed = completion.choices[0]?.message.parsed;
+  if (!parsed) throw new Error("OpenAI returned no parsed categorize response");
   return parsed;
 }

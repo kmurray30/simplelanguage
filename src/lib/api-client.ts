@@ -1,4 +1,4 @@
-import type { Word, TranslationCandidate, SuggestionItem, Direction } from "@/types";
+import type { Word, TranslationCandidate, SuggestionItem, Direction, WordCategory } from "@/types";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -20,6 +20,7 @@ export async function createWord(input: {
   englishGloss: string;
   phonetic: string;
   usageNote?: string;
+  category: WordCategory;
 }): Promise<Word> {
   const res = await fetch("/api/words", {
     method: "POST",
@@ -37,6 +38,7 @@ export async function updateWord(
     englishGloss: string;
     phonetic: string;
     usageNote: string | null;
+    category: WordCategory;
   }>,
 ): Promise<Word> {
   const res = await fetch(`/api/words/${id}`, {

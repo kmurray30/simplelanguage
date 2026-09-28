@@ -1,3 +1,6 @@
+export type { WordCategory } from "@/lib/categories";
+import type { WordCategory } from "@/lib/categories";
+
 export type Word = {
   id: string;
   languageCode: string;
@@ -6,6 +9,7 @@ export type Word = {
   phonetic: string;
   englishGloss: string;
   usageNote: string | null;
+  category: WordCategory;
   hasAudio: boolean;
   createdAt: string;
   updatedAt: string;
@@ -18,6 +22,7 @@ export type TranslationCandidate = {
   englishGloss: string;
   usageNote: string;
   confidence: number;
+  category: WordCategory;
 };
 
 export type SuggestionItem = TranslationCandidate & {

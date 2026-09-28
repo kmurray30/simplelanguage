@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fetchSuggestions } from "@/lib/api-client";
 import type { SuggestionItem, Word } from "@/types";
 import { ConfidenceBar } from "./CandidateCard";
+import { CategoryBadge } from "./CategoryBadge";
 import { Skeleton } from "./Skeleton";
 import { clsx } from "clsx";
 
@@ -115,6 +116,7 @@ export function SuggestionsPanel({
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="hanzi text-lg">{item.nativeText}</span>
                     <span className="text-sm text-foreground-muted">{item.romanization}</span>
+                    <CategoryBadge category={item.category} />
                   </div>
                   <div className="text-sm font-medium mt-0.5">{item.englishGloss}</div>
                   <p className="text-xs text-foreground-muted mt-1">{item.whyNext}</p>

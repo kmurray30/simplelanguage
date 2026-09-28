@@ -1,30 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { CandidateCard } from "./CandidateCard";
+import { CategorySelect } from "./CategorySelect";
 import { SkeletonCandidateCard } from "./Skeleton";
 import { translate, createWord } from "@/lib/api-client";
 import type { Direction, TranslationCandidate, Word } from "@/types";
 import { clsx } from "clsx";
+
+const CJK_PATTERN = /[一-鿿]/;
 
 export function AddWordDialog({
   open,
   onClose,
   onCreated,
   prefill,
+  initialInput,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: (word: Word) => void;
   prefill?: TranslationCandidate | null;
+  initialInput?: string | null;
 }) {
   return (
     <Modal open={open} onClose={onClose} wide>
       {open && (
         <AddWordFormBody
-          key={prefill ? `${prefill.nativeText}::${prefill.englishGloss}` : "blank"}
+          key={
+            prefill
+              ? `${prefill.nativeText}::${prefill.englishGloss}`
+              : initialInput
+                ? `input::${initialInput}`
+                : "blank"
+          }
           prefill={prefill ?? null}
+          initialInput={initialInput ?? null}
           onClose={onClose}
           onCreated={onCreated}
         />
@@ -37,29 +49,31 @@ type Step = "search" | "confirm";
 
 function AddWordFormBody({
   prefill,
+  initialInput,
   onClose,
   onCreated,
 }: {
   prefill: TranslationCandidate | null;
+  initialInput: string | null;
   onClose: () => void;
   onCreated: (word: Word) => void;
 }) {
   const [step, setStep] = useState<Step>(prefill ? "confirm" : "search");
-  const [direction, setDirection] = useState<Direction>("en2zh");
-  const [input, setInput] = useState("");
+  const [direction, setDirection] = useState<Direction>(
+    initialInput && CJK_PATTERN.test(initialInput) ? "zh2en" : "en2zh",
+  );
+  const [input, setInput] = useState(initialInput ?? "");
   const [candidates, setCandidates] = useState<TranslationCandidate[]>(prefill ? [prefill] : []);
   const [selected, setSelected] = useState<TranslationCandidate | null>(prefill);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmitInput(e: React.FormEvent) {
-    e.preventDefault();
-    if (!input.trim()) return;
+  async function runTranslate(text: string, dir: Direction) {
     setLoading(true);
     setError(null);
     try {
-      const results = await translate(input.trim(), direction);
+      const results = await translate(text, dir);
       setCandidates(results);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -67,6 +81,24 @@ function AddWordFormBody({
     } finally {
       setLoading(false);
     }
+  }
+
+  // Auto-runs the search once on mount when opened from the quick-add row, as though the user
+  // had already typed the text and hit Suggest.
+  useEffect(() => {
+    if (initialInput && !prefill) {
+      // Mirrors the user submitting the search form on mount - a legitimate one-time
+      // fetch-on-open, not a synchronous render-loop setState.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      void runTranslate(initialInput, direction);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleSubmitInput(e: React.FormEvent) {
+    e.preventDefault();
+    if (!input.trim()) return;
+    await runTranslate(input.trim(), direction);
   }
 
   function selectCandidate(c: TranslationCandidate) {
@@ -85,6 +117,7 @@ function AddWordFormBody({
         englishGloss: selected.englishGloss,
         phonetic: selected.phonetic,
         usageNote: selected.usageNote,
+        category: selected.category,
       });
       onCreated(word);
       onClose();
@@ -136,6 +169,12 @@ function AddWordFormBody({
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/40"
               value={selected.usageNote}
               onChange={(e) => setSelected({ ...selected, usageNote: e.target.value })}
+            />
+          </Field>
+          <Field label="Category">
+            <CategorySelect
+              value={selected.category}
+              onChange={(category) => setSelected({ ...selected, category })}
             />
           </Field>
           <p className="text-xs text-foreground-muted">

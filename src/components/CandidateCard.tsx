@@ -1,6 +1,7 @@
 "use client";
 
 import type { TranslationCandidate } from "@/types";
+import { CategoryBadge } from "./CategoryBadge";
 import { clsx } from "clsx";
 
 export function ConfidenceBar({ value }: { value: number }) {
@@ -48,6 +49,7 @@ export function CandidateCard({
             <span className="text-xs italic text-foreground-muted">
               &ldquo;{candidate.phonetic}&rdquo;
             </span>
+            <CategoryBadge category={candidate.category} />
           </div>
           <div className="mt-1 text-sm font-medium">{candidate.englishGloss}</div>
           <p className="mt-1 text-xs text-foreground-muted leading-relaxed">

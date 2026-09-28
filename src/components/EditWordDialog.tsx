@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Modal } from "./Modal";
+import { CategorySelect } from "./CategorySelect";
 import { updateWord } from "@/lib/api-client";
 import type { Word } from "@/types";
 
@@ -36,6 +37,7 @@ function EditWordFormBody({
   const [englishGloss, setEnglishGloss] = useState(word.englishGloss);
   const [phonetic, setPhonetic] = useState(word.phonetic);
   const [usageNote, setUsageNote] = useState(word.usageNote ?? "");
+  const [category, setCategory] = useState(word.category);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +52,7 @@ function EditWordFormBody({
         englishGloss,
         phonetic,
         usageNote: usageNote || null,
+        category,
       });
       onUpdated(updated);
       onClose();
@@ -92,6 +95,9 @@ function EditWordFormBody({
           value={usageNote}
           onChange={(e) => setUsageNote(e.target.value)}
         />
+      </Field>
+      <Field label="Category">
+        <CategorySelect value={category} onChange={setCategory} />
       </Field>
 
       {nativeTextChanged && (

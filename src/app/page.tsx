@@ -18,6 +18,7 @@ export default async function Home() {
     phonetic: w.phonetic,
     englishGloss: w.englishGloss,
     usageNote: w.usageNote,
+    category: w.category,
     hasAudio: w.audioClipId !== null,
     createdAt: w.createdAt.toISOString(),
     updatedAt: w.updatedAt.toISOString(),
