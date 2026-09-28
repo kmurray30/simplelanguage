@@ -39,11 +39,12 @@ async function main() {
     console.log("[verify:qwen] DEEPINFRA_API_TOKEN not set, skipping");
     return;
   }
-  // Try a range of plausible shapes for this model's request body.
-  await tryRequest("basic", { text: "你好，谢谢", voice: "Vivian" });
-  await tryRequest("with-language-code", { text: "你好，谢谢", voice: "Vivian", language: "zh" });
-  await tryRequest("with-language-name", { text: "你好，谢谢", voice: "Vivian", language: "Chinese" });
-  await tryRequest("uncle-fu-voice", { text: "你好，谢谢", voice: "Uncle_Fu" });
+  // Field is "input" not "text", and "language" is a real enum incl. "Chinese" - confirmed
+  // from a real 422 validation error on the first attempt.
+  await tryRequest("input-chinese-vivian", { input: "你好，谢谢", voice: "Vivian", language: "Chinese" });
+  await tryRequest("input-chinese-ryan", { input: "你好，谢谢", voice: "Ryan", language: "Chinese" });
+  await tryRequest("input-auto-vivian", { input: "你好，谢谢", voice: "Vivian", language: "Auto" });
+  await tryRequest("input-no-language", { input: "你好，谢谢", voice: "Vivian" });
 }
 
 main();
