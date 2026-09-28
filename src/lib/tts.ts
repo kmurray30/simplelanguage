@@ -1,18 +1,17 @@
-import { KOKORO_MODEL_PATH } from "./constants";
+import { TTS_MODEL_PATH } from "./constants";
 
-const DEEPINFRA_ENDPOINT = `https://api.deepinfra.com/v1/inference/${KOKORO_MODEL_PATH}`;
+const DEEPINFRA_ENDPOINT = `https://api.deepinfra.com/v1/inference/${TTS_MODEL_PATH}`;
 
 export class TtsError extends Error {}
 
 /**
- * DeepInfra's exact response shape for Kokoro-82M was not verified against a live call
- * (this sandbox's network egress blocks api.deepinfra.com) - verify with a real request
- * once deployed, and adjust this function alone if the shape differs. Known/likely shapes,
- * handled in order:
+ * Verified against a real DeepInfra call: response is JSON with
+ * { input_character_length, output_format, audio: "data:audio/wav;base64,..." }.
+ * Handled generically in case the exact field name ever changes:
  *  1. JSON body with a data URI or bare-base64 string under a common field name.
  *  2. Raw audio bytes returned directly (Content-Type: audio/*).
  */
-function parseKokoroResponse(
+function parseTtsResponse(
   contentType: string | null,
   bodyText: string,
   bodyBuffer: () => Promise<ArrayBuffer>,
@@ -60,7 +59,10 @@ export async function synthesizeAudio(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ text, voice: voiceId }),
+    // "language" is fixed to Chinese since that's the only language this app supports today;
+    // this will need to become per-Language data (alongside defaultVoiceId) when a second
+    // language is added.
+    body: JSON.stringify({ input: text, voice: voiceId, language: "Chinese" }),
   });
 
   if (!res.ok) {
@@ -71,7 +73,7 @@ export async function synthesizeAudio(
   const contentType = res.headers.get("content-type");
   const bodyText = contentType && contentType.startsWith("audio/") ? "" : await res.text();
 
-  return parseKokoroResponse(contentType, bodyText, async () => {
+  return parseTtsResponse(contentType, bodyText, async () => {
     // Re-fetch as buffer path only reachable when content-type is audio/*, where bodyText was
     // left empty above and the original response body is still unread.
     return res.arrayBuffer();
