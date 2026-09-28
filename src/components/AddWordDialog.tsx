@@ -33,6 +33,8 @@ export function AddWordDialog({
   );
 }
 
+type Step = "search" | "confirm";
+
 function AddWordFormBody({
   prefill,
   onClose,
@@ -42,10 +44,10 @@ function AddWordFormBody({
   onClose: () => void;
   onCreated: (word: Word) => void;
 }) {
+  const [step, setStep] = useState<Step>(prefill ? "confirm" : "search");
   const [direction, setDirection] = useState<Direction>("en2zh");
   const [input, setInput] = useState("");
   const [candidates, setCandidates] = useState<TranslationCandidate[]>(prefill ? [prefill] : []);
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(prefill ? 0 : null);
   const [selected, setSelected] = useState<TranslationCandidate | null>(prefill);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -56,8 +58,6 @@ function AddWordFormBody({
     if (!input.trim()) return;
     setLoading(true);
     setError(null);
-    setSelected(null);
-    setSelectedIndex(null);
     try {
       const results = await translate(input.trim(), direction);
       setCandidates(results);
@@ -67,6 +67,12 @@ function AddWordFormBody({
     } finally {
       setLoading(false);
     }
+  }
+
+  function selectCandidate(c: TranslationCandidate) {
+    setSelected({ ...c });
+    setError(null);
+    setStep("confirm");
   }
 
   async function handleSave() {
@@ -87,6 +93,70 @@ function AddWordFormBody({
     } finally {
       setSaving(false);
     }
+  }
+
+  if (step === "confirm" && selected) {
+    return (
+      <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-medium">Confirm this word</h2>
+          <button
+            onClick={() => setStep("search")}
+            className="text-xs text-foreground-muted hover:text-foreground"
+          >
+            &larr; Back to suggestions
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          <Field label="Chinese (hanzi)">
+            <input
+              className="hanzi text-lg w-full rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              value={selected.nativeText}
+              onChange={(e) => setSelected({ ...selected, nativeText: e.target.value })}
+            />
+          </Field>
+          <Field label="English translation">
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+              value={selected.englishGloss}
+              onChange={(e) => setSelected({ ...selected, englishGloss: e.target.value })}
+            />
+          </Field>
+          <Field label="Phonetic pronunciation (English-friendly)">
+            <input
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+              value={selected.phonetic}
+              onChange={(e) => setSelected({ ...selected, phonetic: e.target.value })}
+            />
+          </Field>
+          <Field label="Usage note">
+            <textarea
+              rows={2}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/40"
+              value={selected.usageNote}
+              onChange={(e) => setSelected({ ...selected, usageNote: e.target.value })}
+            />
+          </Field>
+          <p className="text-xs text-foreground-muted">
+            Pinyin (<span className="italic">{selected.romanization || "—"}</span>) is computed
+            automatically from the hanzi.
+          </p>
+        </div>
+
+        {error && <p className="text-sm text-red-500">{error}</p>}
+
+        <div className="flex justify-end pt-1">
+          <button
+            onClick={handleSave}
+            disabled={saving || !selected.nativeText.trim() || !selected.englishGloss.trim()}
+            className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
+          >
+            {saving ? "Adding…" : "Add to my list"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -141,71 +211,14 @@ function AddWordFormBody({
         <div className="space-y-2.5">
           {!loading && (
             <p className="text-xs text-foreground-muted">
-              Pick the translation that fits best — you can edit it before saving.
+              Pick the translation that fits best — you can edit it on the next screen.
             </p>
           )}
           {loading
             ? Array.from({ length: 3 }).map((_, i) => <SkeletonCandidateCard key={i} />)
             : candidates.map((c, i) => (
-                <CandidateCard
-                  key={i}
-                  candidate={c}
-                  selected={selectedIndex === i}
-                  onSelect={() => {
-                    setSelectedIndex(i);
-                    setSelected({ ...c });
-                  }}
-                />
+                <CandidateCard key={i} candidate={c} onSelect={() => selectCandidate(c)} />
               ))}
-        </div>
-      )}
-
-      {selected && (
-        <div className="space-y-3 rounded-2xl border border-accent/30 bg-accent-soft/40 p-4 animate-fade-in-up">
-          <h3 className="text-sm font-medium">Save this word</h3>
-          <Field label="Chinese (hanzi)">
-            <input
-              className="hanzi text-lg w-full rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
-              value={selected.nativeText}
-              onChange={(e) => setSelected({ ...selected, nativeText: e.target.value })}
-            />
-          </Field>
-          <Field label="English translation">
-            <input
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-              value={selected.englishGloss}
-              onChange={(e) => setSelected({ ...selected, englishGloss: e.target.value })}
-            />
-          </Field>
-          <Field label="Phonetic pronunciation (English-friendly)">
-            <input
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-              value={selected.phonetic}
-              onChange={(e) => setSelected({ ...selected, phonetic: e.target.value })}
-            />
-          </Field>
-          <Field label="Usage note">
-            <textarea
-              rows={2}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/40"
-              value={selected.usageNote}
-              onChange={(e) => setSelected({ ...selected, usageNote: e.target.value })}
-            />
-          </Field>
-          <p className="text-xs text-foreground-muted">
-            Pinyin (<span className="italic">{selected.romanization || "—"}</span>) is computed
-            automatically from the hanzi.
-          </p>
-
-          <div className="flex justify-end pt-1">
-            <button
-              onClick={handleSave}
-              disabled={saving || !selected.nativeText.trim() || !selected.englishGloss.trim()}
-              className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
-            >
-              {saving ? "Adding…" : "Add to my list"}
-            </button>
-          </div>
         </div>
       )}
     </div>

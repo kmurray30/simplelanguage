@@ -1,20 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchSuggestions } from "@/lib/api-client";
-import type { SuggestionItem } from "@/types";
+import type { SuggestionItem, Word } from "@/types";
 import { ConfidenceBar } from "./CandidateCard";
 import { Skeleton } from "./Skeleton";
+import { clsx } from "clsx";
+
+const CACHE_KEY = "simplelanguage:suggestions:zh";
+
+function readCache(): SuggestionItem[] | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? (JSON.parse(raw) as SuggestionItem[]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(items: SuggestionItem[]) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(items));
+  } catch {
+    // storage unavailable - suggestions just won't persist across visits
+  }
+}
 
 export function SuggestionsPanel({
+  words,
   onPick,
+  onRemove,
 }: {
+  words: Word[];
   onPick: (item: SuggestionItem) => void;
+  onRemove: (wordId: string) => void;
 }) {
+  // Starts null on both server and client (localStorage doesn't exist during SSR) - the cache
+  // is read post-mount in the effect below, to avoid a hydration mismatch.
   const [items, setItems] = useState<SuggestionItem[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [added, setAdded] = useState<Set<string>>(new Set());
 
   async function load() {
     setLoading(true);
@@ -22,12 +47,24 @@ export function SuggestionsPanel({
     try {
       const results = await fetchSuggestions(6);
       setItems(results);
+      writeCache(results);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't load suggestions");
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const cached = readCache();
+    if (cached && cached.length > 0) {
+      // localStorage is browser-only and unavailable during SSR, so this can only run post-mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setItems(cached);
+    } else {
+      load();
+    }
+  }, []);
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 space-y-3">
@@ -41,13 +78,13 @@ export function SuggestionsPanel({
           disabled={loading}
           className="text-xs px-3 py-1.5 rounded-full border border-border hover:bg-surface-muted transition-colors disabled:opacity-50"
         >
-          {loading ? "Thinking…" : items ? "Refresh" : "Suggest words"}
+          {loading ? "Thinking…" : "Refresh"}
         </button>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {loading && (
+      {loading && !items && (
         <div className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="rounded-xl border border-border p-3 space-y-2">
@@ -62,14 +99,17 @@ export function SuggestionsPanel({
         </div>
       )}
 
-      {!loading && items && (
+      {items && (
         <div className="space-y-2">
           {items.map((item, i) => {
-            const isAdded = added.has(item.nativeText);
+            const addedWord = words.find((w) => w.nativeText === item.nativeText);
             return (
               <div
                 key={i}
-                className="rounded-xl border border-border p-3 flex items-start justify-between gap-3"
+                className={clsx(
+                  "rounded-xl border p-3 flex items-start justify-between gap-3 transition-colors",
+                  addedWord ? "border-accent bg-accent-soft" : "border-border",
+                )}
               >
                 <div className="min-w-0">
                   <div className="flex items-baseline gap-2 flex-wrap">
@@ -81,16 +121,21 @@ export function SuggestionsPanel({
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
                   <ConfidenceBar value={item.confidence} />
-                  <button
-                    onClick={() => {
-                      onPick(item);
-                      setAdded((prev) => new Set(prev).add(item.nativeText));
-                    }}
-                    disabled={isAdded}
-                    className="text-xs px-3 py-1 rounded-full bg-accent text-accent-foreground disabled:opacity-40 hover:opacity-90 transition-opacity"
-                  >
-                    {isAdded ? "Added" : "Add"}
-                  </button>
+                  {addedWord ? (
+                    <button
+                      onClick={() => onRemove(addedWord.id)}
+                      className="text-xs px-3 py-1 rounded-full border border-accent text-accent hover:bg-accent hover:text-accent-foreground transition-colors"
+                    >
+                      Remove
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => onPick(item)}
+                      className="text-xs px-3 py-1 rounded-full bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
+                    >
+                      Add
+                    </button>
+                  )}
                 </div>
               </div>
             );

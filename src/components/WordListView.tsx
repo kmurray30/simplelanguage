@@ -98,7 +98,14 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
         )}
       </div>
 
-      <SuggestionsPanel onPick={handlePickSuggestion} />
+      <SuggestionsPanel
+        words={words}
+        onPick={handlePickSuggestion}
+        onRemove={(id) => {
+          const word = words.find((w) => w.id === id);
+          if (word) handleDelete(word);
+        }}
+      />
 
       <AddWordDialog
         open={addOpen}
