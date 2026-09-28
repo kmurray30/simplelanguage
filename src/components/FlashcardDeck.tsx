@@ -15,6 +15,18 @@ export function FlashcardDeck({ words }: { words: Word[] }) {
   const [frontSide, setFrontSide] = useState<FrontSide>("en");
 
   const word = words[index];
+  const visibleSide: FrontSide = flipped ? (frontSide === "en" ? "zh" : "en") : frontSide;
+
+  // Auto-plays whenever the Chinese face becomes the visible one - via flip, the front-side
+  // toggle, or navigating to a new card while already showing Chinese first. Plays directly
+  // (independent of the AudioButton below) since AnimatePresence's mode="wait" delays mounting
+  // the next card's button until the previous one's exit animation finishes.
+  useEffect(() => {
+    if (visibleSide !== "zh" || !word) return;
+    const audio = new Audio(`/api/words/${word.id}/audio`);
+    audio.play().catch((err) => console.error("[FlashcardDeck] autoplay failed", err));
+    return () => audio.pause();
+  }, [visibleSide, word]);
 
   const go = useCallback(
     (delta: number) => {
