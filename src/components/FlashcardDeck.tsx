@@ -65,7 +65,7 @@ export function FlashcardDeck({ words }: { words: Word[] }) {
               &ldquo;{word.phonetic}&rdquo;
             </span>
             <div onClick={(e) => e.stopPropagation()} className="mt-2">
-              <AudioButton wordId={word.id} />
+              <AudioButton src={`/api/words/${word.id}/audio`} />
             </div>
           </>
         ) : (

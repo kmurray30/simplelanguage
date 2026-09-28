@@ -77,8 +77,12 @@ model SuggestionPoolWord {
   usageNote    String
   whyNext      String // short rationale for why this is a good word to learn
   category     WordCategory
-  rank         Int // 1 = most common/useful
-  createdAt    DateTime @default(now())
+  rank         Int // 1 = most common/useful - words added on demand via search get MAX(rank)+1
+
+  audioClipId String?
+  audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])
+
+  createdAt DateTime @default(now())
 
   @@unique([languageCode, nativeText, englishGloss])
   @@index([languageCode, category])
@@ -86,14 +90,15 @@ model SuggestionPoolWord {
 }
 
 model AudioClip {
-  id           String   @id @default(cuid())
-  languageCode String
-  text         String // exact text sent to the TTS model
-  voiceId      String
-  audioData    Bytes
-  mimeType     String
-  createdAt    DateTime @default(now())
-  words        Word[]
+  id                  String               @id @default(cuid())
+  languageCode        String
+  text                String // exact text sent to the TTS model
+  voiceId             String
+  audioData           Bytes
+  mimeType            String
+  createdAt           DateTime             @default(now())
+  words               Word[]
+  suggestionPoolWords SuggestionPoolWord[]
 
   @@unique([languageCode, text, voiceId])
 }

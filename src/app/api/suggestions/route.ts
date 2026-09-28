@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
   const suggestions = shuffle(pool)
     .slice(0, count)
     .map((w) => ({
+      poolId: w.id,
       nativeText: w.nativeText,
       romanization: w.romanization,
       phonetic: w.phonetic,

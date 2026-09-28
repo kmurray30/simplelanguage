@@ -15,7 +15,7 @@ export function WordRow({
 }) {
   return (
     <div className="group flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 hover:border-accent/40 transition-colors">
-      <AudioButton wordId={word.id} />
+      <AudioButton src={`/api/words/${word.id}/audio`} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="hanzi text-xl">{word.nativeText}</span>

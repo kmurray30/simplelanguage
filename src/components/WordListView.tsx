@@ -7,7 +7,7 @@ import { EditWordDialog } from "./EditWordDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { deleteWord } from "@/lib/api-client";
-import type { SuggestionItem, Word, WordDraft } from "@/types";
+import type { Word, WordDraft } from "@/types";
 
 type AddSeed = { prefill: WordDraft | null; initialInput: string | null };
 const BLANK_SEED: AddSeed = { prefill: null, initialInput: null };
@@ -39,7 +39,7 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
     setAddOpen(true);
   }
 
-  function handlePickSuggestion(item: SuggestionItem) {
+  function handlePickSuggestion(item: WordDraft) {
     setAddSeed({ prefill: item, initialInput: null });
     setAddOpen(true);
   }

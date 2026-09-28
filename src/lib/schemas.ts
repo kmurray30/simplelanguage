@@ -63,6 +63,17 @@ export const WordUpdateSchema = z.object({
   category: WordCategorySchema.optional(),
 });
 
+// A live search result (LLM-only, not yet in the suggestion pool) being promoted into a real
+// SuggestionPoolWord row - see /api/suggestions/ensure.
+export const EnsureSuggestionSchema = z.object({
+  languageCode: z.string().min(1).default("zh"),
+  nativeText: z.string().min(1),
+  phonetic: z.string().min(1),
+  englishGloss: z.string().min(1),
+  usageNote: z.string().min(1),
+  category: WordCategorySchema,
+});
+
 export const CategorizeRequestItemSchema = z.object({
   id: z.string().min(1),
   nativeText: z.string().min(1),

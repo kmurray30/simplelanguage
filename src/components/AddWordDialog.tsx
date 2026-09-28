@@ -6,10 +6,9 @@ import { CandidateCard } from "./CandidateCard";
 import { CategorySelect } from "./CategorySelect";
 import { SkeletonCandidateCard } from "./Skeleton";
 import { translate, createWord } from "@/lib/api-client";
+import { detectDirection } from "@/lib/text";
 import type { Direction, TranslationCandidate, Word, WordDraft } from "@/types";
 import { clsx } from "clsx";
-
-const CJK_PATTERN = /[一-鿿]/;
 
 export function AddWordDialog({
   open,
@@ -60,7 +59,7 @@ function AddWordFormBody({
 }) {
   const [step, setStep] = useState<Step>(prefill ? "confirm" : "search");
   const [direction, setDirection] = useState<Direction>(
-    initialInput && CJK_PATTERN.test(initialInput) ? "zh2en" : "en2zh",
+    initialInput ? detectDirection(initialInput) : "en2zh",
   );
   const [input, setInput] = useState(initialInput ?? "");
   const [candidates, setCandidates] = useState<TranslationCandidate[]>([]);

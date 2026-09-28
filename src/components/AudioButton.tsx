@@ -4,11 +4,13 @@ import { useRef, useState } from "react";
 import { clsx } from "clsx";
 
 export function AudioButton({
-  wordId,
+  src,
   size = "md",
   className,
 }: {
-  wordId: string;
+  // A ready URL, or a resolver for cases where the audio-owning row doesn't exist yet (e.g. a
+  // live search result not yet in the suggestion pool) - called once, lazily, on first press.
+  src: string | (() => Promise<string>);
   size?: "sm" | "md";
   className?: string;
 }) {
@@ -21,11 +23,20 @@ export function AudioButton({
     if (status === "loading") return;
 
     if (!audioRef.current) {
-      const audio = new Audio(`/api/words/${wordId}/audio`);
+      setStatus("loading");
+      let url: string;
+      try {
+        url = typeof src === "string" ? src : await src();
+      } catch (err) {
+        console.error("[AudioButton] failed to resolve audio URL", err);
+        setStatus("error");
+        return;
+      }
+      const audio = new Audio(url);
       audio.preload = "auto";
       audio.addEventListener("ended", () => setStatus("idle"));
       audio.addEventListener("error", () => {
-        console.error("[AudioButton] playback error", wordId, audio.error);
+        console.error("[AudioButton] playback error", url, audio.error);
         setStatus("error");
       });
       audioRef.current = audio;
@@ -36,7 +47,7 @@ export function AudioButton({
       await audioRef.current.play();
       setStatus("playing");
     } catch (err) {
-      console.error("[AudioButton] play() rejected", wordId, err);
+      console.error("[AudioButton] play() rejected", err);
       setStatus("error");
     }
   }
