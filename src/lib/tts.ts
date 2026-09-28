@@ -62,7 +62,15 @@ export async function synthesizeAudio(
     // "language" is fixed to Chinese since that's the only language this app supports today;
     // this will need to become per-Language data (alongside defaultVoiceId) when a second
     // language is added.
-    body: JSON.stringify({ input: text, voice: voiceId, language: "Chinese" }),
+    // "speed" and "instructions" verified against a real DeepInfra call (both accepted, 200).
+    // Slightly slower + an explicit clarity instruction, since this is for language learners.
+    body: JSON.stringify({
+      input: text,
+      voice: voiceId,
+      language: "Chinese",
+      speed: 0.85,
+      instructions: "Speak slowly and clearly, enunciating each syllable distinctly, as if teaching a language learner.",
+    }),
   });
 
   if (!res.ok) {
