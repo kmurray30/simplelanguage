@@ -3,12 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AudioButton } from "./AudioButton";
+import { clsx } from "clsx";
 import type { Word } from "@/types";
+
+type FrontSide = "en" | "zh";
 
 export function FlashcardDeck({ words }: { words: Word[] }) {
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [direction, setDirection] = useState(0);
+  const [frontSide, setFrontSide] = useState<FrontSide>("en");
 
   const word = words[index];
 
@@ -44,10 +48,67 @@ export function FlashcardDeck({ words }: { words: Word[] }) {
     );
   }
 
+  function renderFace(side: FrontSide, rotateDeg: 0 | 180) {
+    return (
+      <div
+        className={clsx(
+          "absolute inset-0 [backface-visibility:hidden] rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center gap-3 p-8",
+          side === "zh" ? "bg-surface" : "bg-accent-soft",
+        )}
+        style={{ transform: `rotateY(${rotateDeg}deg)` }}
+      >
+        {side === "zh" ? (
+          <>
+            <span className="hanzi text-6xl">{word.nativeText}</span>
+            <span className="text-lg text-foreground-muted">{word.romanization}</span>
+            <span className="text-sm italic text-foreground-muted">
+              &ldquo;{word.phonetic}&rdquo;
+            </span>
+            <div onClick={(e) => e.stopPropagation()} className="mt-2">
+              <AudioButton wordId={word.id} />
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="text-2xl font-medium text-center">{word.englishGloss}</span>
+            {word.usageNote && (
+              <p className="text-sm text-foreground-muted text-center max-w-sm">
+                {word.usageNote}
+              </p>
+            )}
+          </>
+        )}
+        <span className="absolute bottom-4 text-[11px] text-foreground-muted">tap to flip</span>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-10 flex flex-col items-center gap-6">
-      <div className="text-xs text-foreground-muted tabular-nums">
-        {index + 1} / {words.length}
+      <div className="flex items-center gap-4">
+        <span className="text-xs text-foreground-muted tabular-nums">
+          {index + 1} / {words.length}
+        </span>
+        <div className="flex rounded-full border border-border p-0.5 text-xs">
+          {(["en", "zh"] as FrontSide[]).map((side) => (
+            <button
+              key={side}
+              type="button"
+              onClick={() => {
+                setFrontSide(side);
+                setFlipped(false);
+              }}
+              className={clsx(
+                "px-2.5 py-1 rounded-full transition-colors",
+                frontSide === side
+                  ? "bg-accent text-accent-foreground"
+                  : "text-foreground-muted hover:text-foreground",
+              )}
+            >
+              {side === "en" ? "English first" : "中文 first"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="relative w-full h-72 [perspective:1200px]">
@@ -74,36 +135,8 @@ export function FlashcardDeck({ words }: { words: Word[] }) {
               className="w-full h-full cursor-pointer [transform-style:preserve-3d] transition-transform duration-500"
               style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
             >
-              {/* Front: Chinese */}
-              <div className="absolute inset-0 [backface-visibility:hidden] rounded-3xl border border-border bg-surface shadow-sm flex flex-col items-center justify-center gap-3 p-8">
-                <span className="hanzi text-6xl">{word.nativeText}</span>
-                <span className="text-lg text-foreground-muted">{word.romanization}</span>
-                <span className="text-sm italic text-foreground-muted">
-                  &ldquo;{word.phonetic}&rdquo;
-                </span>
-                <div onClick={(e) => e.stopPropagation()} className="mt-2">
-                  <AudioButton wordId={word.id} />
-                </div>
-                <span className="absolute bottom-4 text-[11px] text-foreground-muted">
-                  tap to flip
-                </span>
-              </div>
-
-              {/* Back: English */}
-              <div
-                className="absolute inset-0 [backface-visibility:hidden] rounded-3xl border border-border bg-accent-soft shadow-sm flex flex-col items-center justify-center gap-3 p-8"
-                style={{ transform: "rotateY(180deg)" }}
-              >
-                <span className="text-2xl font-medium text-center">{word.englishGloss}</span>
-                {word.usageNote && (
-                  <p className="text-sm text-foreground-muted text-center max-w-sm">
-                    {word.usageNote}
-                  </p>
-                )}
-                <span className="absolute bottom-4 text-[11px] text-foreground-muted">
-                  tap to flip
-                </span>
-              </div>
+              {renderFace(frontSide, 0)}
+              {renderFace(frontSide === "en" ? "zh" : "en", 180)}
             </div>
           </motion.div>
         </AnimatePresence>

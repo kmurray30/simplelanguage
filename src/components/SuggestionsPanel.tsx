@@ -4,6 +4,7 @@ import { useState } from "react";
 import { fetchSuggestions } from "@/lib/api-client";
 import type { SuggestionItem } from "@/types";
 import { ConfidenceBar } from "./CandidateCard";
+import { Skeleton } from "./Skeleton";
 
 export function SuggestionsPanel({
   onPick,
@@ -46,7 +47,22 @@ export function SuggestionsPanel({
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      {items && (
+      {loading && (
+        <div className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="rounded-xl border border-border p-3 space-y-2">
+              <div className="flex items-baseline gap-2">
+                <Skeleton className="h-5 w-14" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && items && (
         <div className="space-y-2">
           {items.map((item, i) => {
             const isAdded = added.has(item.nativeText);

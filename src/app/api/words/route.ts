@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { toRomanization } from "@/lib/pinyin";
 import { WordCreateSchema } from "@/lib/schemas";
+import { triggerAudioGeneration } from "@/lib/audioCache";
 
 export async function GET(req: NextRequest) {
   const languageCode = req.nextUrl.searchParams.get("languageCode") ?? "zh";
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
     const word = await prisma.word.create({
       data: { languageCode, nativeText, romanization, phonetic, englishGloss, usageNote },
     });
+    triggerAudioGeneration(word);
     return NextResponse.json({ word }, { status: 201 });
   } catch (e: unknown) {
     if (typeof e === "object" && e !== null && "code" in e && e.code === "P2002") {

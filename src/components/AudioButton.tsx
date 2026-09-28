@@ -21,16 +21,22 @@ export function AudioButton({
     if (status === "loading") return;
 
     if (!audioRef.current) {
-      audioRef.current = new Audio(`/api/words/${wordId}/audio`);
-      audioRef.current.addEventListener("ended", () => setStatus("idle"));
-      audioRef.current.addEventListener("error", () => setStatus("error"));
+      const audio = new Audio(`/api/words/${wordId}/audio`);
+      audio.preload = "auto";
+      audio.addEventListener("ended", () => setStatus("idle"));
+      audio.addEventListener("error", () => {
+        console.error("[AudioButton] playback error", wordId, audio.error);
+        setStatus("error");
+      });
+      audioRef.current = audio;
     }
 
     try {
       setStatus("loading");
       await audioRef.current.play();
       setStatus("playing");
-    } catch {
+    } catch (err) {
+      console.error("[AudioButton] play() rejected", wordId, err);
       setStatus("error");
     }
   }

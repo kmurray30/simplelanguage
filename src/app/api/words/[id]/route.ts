@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { toRomanization } from "@/lib/pinyin";
 import { WordUpdateSchema } from "@/lib/schemas";
+import { triggerAudioGeneration } from "@/lib/audioCache";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -51,6 +52,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         ...(nativeTextChanged && { romanization: toRomanization(nativeText!), audioClipId: null }),
       },
     });
+    if (nativeTextChanged) triggerAudioGeneration(word);
     return NextResponse.json({ word });
   } catch (e: unknown) {
     if (typeof e === "object" && e !== null && "code" in e && e.code === "P2002") {

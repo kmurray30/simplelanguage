@@ -3,11 +3,10 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
 import { CandidateCard } from "./CandidateCard";
+import { SkeletonCandidateCard } from "./Skeleton";
 import { translate, createWord } from "@/lib/api-client";
 import type { Direction, TranslationCandidate, Word } from "@/types";
 import { clsx } from "clsx";
-
-type Step = "input" | "candidates" | "editing";
 
 export function AddWordDialog({
   open,
@@ -45,8 +44,8 @@ function AddWordFormBody({
 }) {
   const [direction, setDirection] = useState<Direction>("en2zh");
   const [input, setInput] = useState("");
-  const [step, setStep] = useState<Step>(prefill ? "editing" : "input");
-  const [candidates, setCandidates] = useState<TranslationCandidate[]>([]);
+  const [candidates, setCandidates] = useState<TranslationCandidate[]>(prefill ? [prefill] : []);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(prefill ? 0 : null);
   const [selected, setSelected] = useState<TranslationCandidate | null>(prefill);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,20 +56,17 @@ function AddWordFormBody({
     if (!input.trim()) return;
     setLoading(true);
     setError(null);
+    setSelected(null);
+    setSelectedIndex(null);
     try {
       const results = await translate(input.trim(), direction);
       setCandidates(results);
-      setStep("candidates");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+      setCandidates([]);
     } finally {
       setLoading(false);
     }
-  }
-
-  function selectCandidate(c: TranslationCandidate) {
-    setSelected({ ...c });
-    setStep("editing");
   }
 
   async function handleSave() {
@@ -94,39 +90,29 @@ function AddWordFormBody({
   }
 
   return (
-    <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">Add a word</h2>
-        {step !== "input" && (
-          <button
-            onClick={() => setStep(candidates.length ? "candidates" : "input")}
-            className="text-xs text-foreground-muted hover:text-foreground"
-          >
-            &larr; Back
-          </button>
-        )}
-      </div>
+    <div className="p-6 space-y-5 max-h-[85vh] overflow-y-auto">
+      <h2 className="text-lg font-medium">Add a word</h2>
 
-      {step === "input" && (
-        <form onSubmit={handleSubmitInput} className="space-y-4">
-          <div className="flex rounded-full border border-border p-0.5 w-fit text-sm">
-            {(["en2zh", "zh2en"] as Direction[]).map((d) => (
-              <button
-                key={d}
-                type="button"
-                onClick={() => setDirection(d)}
-                className={clsx(
-                  "px-3 py-1.5 rounded-full transition-colors",
-                  direction === d
-                    ? "bg-accent text-accent-foreground"
-                    : "text-foreground-muted hover:text-foreground",
-                )}
-              >
-                {d === "en2zh" ? "English → 中文" : "中文 → English"}
-              </button>
-            ))}
-          </div>
+      <form onSubmit={handleSubmitInput} className="space-y-3">
+        <div className="flex rounded-full border border-border p-0.5 w-fit text-sm">
+          {(["en2zh", "zh2en"] as Direction[]).map((d) => (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDirection(d)}
+              className={clsx(
+                "px-3 py-1.5 rounded-full transition-colors",
+                direction === d
+                  ? "bg-accent text-accent-foreground"
+                  : "text-foreground-muted hover:text-foreground",
+              )}
+            >
+              {d === "en2zh" ? "English → 中文" : "中文 → English"}
+            </button>
+          ))}
+        </div>
 
+        <div className="flex gap-2 items-start">
           <textarea
             autoFocus
             value={input}
@@ -136,37 +122,47 @@ function AddWordFormBody({
                 ? 'e.g. "thank you (silly and informal)"'
                 : "e.g. 谢谢 or xièxie"
             }
-            rows={3}
-            className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/40"
+            rows={2}
+            className="flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
+          <button
+            type="submit"
+            disabled={loading || !input.trim()}
+            className="shrink-0 px-4 py-2.5 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
+          >
+            {loading ? "Thinking…" : "Suggest"}
+          </button>
+        </div>
+      </form>
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={loading || !input.trim()}
-              className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
-            >
-              {loading ? "Thinking…" : "Get suggestions"}
-            </button>
-          </div>
-        </form>
-      )}
-
-      {step === "candidates" && (
+      {(loading || candidates.length > 0) && (
         <div className="space-y-2.5">
-          <p className="text-xs text-foreground-muted">
-            Pick the translation that fits best — you can edit it before saving.
-          </p>
-          {candidates.map((c, i) => (
-            <CandidateCard key={i} candidate={c} onSelect={() => selectCandidate(c)} />
-          ))}
+          {!loading && (
+            <p className="text-xs text-foreground-muted">
+              Pick the translation that fits best — you can edit it before saving.
+            </p>
+          )}
+          {loading
+            ? Array.from({ length: 3 }).map((_, i) => <SkeletonCandidateCard key={i} />)
+            : candidates.map((c, i) => (
+                <CandidateCard
+                  key={i}
+                  candidate={c}
+                  selected={selectedIndex === i}
+                  onSelect={() => {
+                    setSelectedIndex(i);
+                    setSelected({ ...c });
+                  }}
+                />
+              ))}
         </div>
       )}
 
-      {step === "editing" && selected && (
-        <div className="space-y-3">
+      {selected && (
+        <div className="space-y-3 rounded-2xl border border-accent/30 bg-accent-soft/40 p-4 animate-fade-in-up">
+          <h3 className="text-sm font-medium">Save this word</h3>
           <Field label="Chinese (hanzi)">
             <input
               className="hanzi text-lg w-full rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
@@ -200,8 +196,6 @@ function AddWordFormBody({
             Pinyin (<span className="italic">{selected.romanization || "—"}</span>) is computed
             automatically from the hanzi.
           </p>
-
-          {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="flex justify-end pt-1">
             <button
