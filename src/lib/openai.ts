@@ -4,11 +4,11 @@ import { OPENAI_MODEL } from "./constants";
 import { CATEGORIES } from "./categories";
 import {
   TranslateResponseSchema,
-  SuggestionsResponseSchema,
+  WordBankBatchResponseSchema,
   CategorizeResponseSchema,
   type Direction,
   type TranslateResponse,
-  type SuggestionsResponse,
+  type WordBankBatchResponse,
   type CategorizeResponse,
 } from "./schemas";
 
@@ -39,15 +39,17 @@ Rules:
   the parenthetical qualifier and let it steer which candidates you propose.
 ${CATEGORY_RULE}`;
 
-const SUGGESTIONS_SYSTEM_PROMPT = `You are a Mandarin Chinese tutor helping an English-speaking student expand
-their vocabulary. You are given the student's current word list (hanzi + English gloss).
-Suggest new, genuinely common and useful everyday words or short phrases they don't have yet -
-prioritize high-frequency, practical vocabulary over obscure or academic words. For each,
-include a one-sentence "whyNext" explaining why it's a good next word to learn.
+const WORD_BANK_SYSTEM_PROMPT = `You are building a reference word bank for an English-speaking student learning
+Mandarin Chinese: a ranked list of the most common and useful everyday Chinese words/short
+phrases, split into batches by rank range (e.g. "words ranked 1-50 by frequency/usefulness").
+For each word, include a one-sentence "whyNext" explaining why it's a good word to learn.
 
-Same field rules as translation: natural glosses, English-reader-friendly "phonetic" (not
-pinyin), no romanization, one-sentence "usageNote", and "confidence" reflecting how commonly
-the word is actually used in real life.
+You will be given a list of words already generated in earlier batches - never repeat any of
+them, and don't repeat words within your own batch either.
+
+Same field rules as translation, minus confidence (not applicable to a static reference list):
+natural glosses, English-reader-friendly "phonetic" (not pinyin), no romanization, one-sentence
+"usageNote".
 ${CATEGORY_RULE}`;
 
 const CATEGORIZE_SYSTEM_PROMPT = `You are organizing a Mandarin Chinese vocabulary list into normalized
@@ -82,29 +84,28 @@ export async function generateTranslationCandidates(
   return parsed;
 }
 
-export async function generateNextWordSuggestions(
-  knownWords: { nativeText: string; englishGloss: string }[],
-  count: number,
-): Promise<SuggestionsResponse> {
-  const knownList =
-    knownWords.length > 0
-      ? knownWords.map((w) => `${w.nativeText} (${w.englishGloss})`).join(", ")
-      : "(none yet - this is a brand new list)";
+export async function generateWordBankBatch(
+  alreadyGenerated: string[],
+  batchSize: number,
+  rankRangeLabel: string,
+): Promise<WordBankBatchResponse> {
+  const excludeList =
+    alreadyGenerated.length > 0 ? alreadyGenerated.join(", ") : "(none yet - this is the first batch)";
 
   const completion = await client.chat.completions.parse({
     model: OPENAI_MODEL,
     messages: [
-      { role: "system", content: SUGGESTIONS_SYSTEM_PROMPT },
+      { role: "system", content: WORD_BANK_SYSTEM_PROMPT },
       {
         role: "user",
-        content: `Words already known:\n${knownList}\n\nSuggest ${count} new words to learn next.`,
+        content: `Words already generated in earlier batches (never repeat these):\n${excludeList}\n\nGenerate exactly ${batchSize} new words for rank range ${rankRangeLabel}.`,
       },
     ],
-    response_format: zodResponseFormat(SuggestionsResponseSchema, "suggestions_response"),
+    response_format: zodResponseFormat(WordBankBatchResponseSchema, "word_bank_batch_response"),
   });
 
   const parsed = completion.choices[0]?.message.parsed;
-  if (!parsed) throw new Error("OpenAI returned no parsed suggestions response");
+  if (!parsed) throw new Error("OpenAI returned no parsed word bank batch response");
   return parsed;
 }
 

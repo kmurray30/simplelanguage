@@ -1,4 +1,11 @@
-import type { Word, TranslationCandidate, SuggestionItem, Direction, WordCategory } from "@/types";
+import type {
+  Word,
+  TranslationCandidate,
+  SuggestionItem,
+  CategoryCount,
+  Direction,
+  WordCategory,
+} from "@/types";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -68,8 +75,11 @@ export async function translate(
   return data.candidates;
 }
 
-export async function fetchSuggestions(count = 6): Promise<SuggestionItem[]> {
-  const res = await fetch(`/api/suggestions?languageCode=zh&count=${count}`);
-  const data = await handle<{ suggestions: SuggestionItem[] }>(res);
-  return data.suggestions;
+export async function fetchSuggestions(
+  count = 6,
+  category?: WordCategory | "all",
+): Promise<{ suggestions: SuggestionItem[]; categoryCounts: CategoryCount[] }> {
+  const categoryQuery = category && category !== "all" ? `&category=${category}` : "";
+  const res = await fetch(`/api/suggestions?languageCode=zh&count=${count}${categoryQuery}`);
+  return handle<{ suggestions: SuggestionItem[]; categoryCounts: CategoryCount[] }>(res);
 }

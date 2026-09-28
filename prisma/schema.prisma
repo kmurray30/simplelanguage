@@ -64,6 +64,27 @@ model Word {
   @@index([languageCode, category])
 }
 
+// Pre-generated, ranked, category-tagged pool of common words used to serve "words to learn
+// next" suggestions without calling the LLM per-request. Populated once by
+// scripts/generate-word-bank.ts, independent of any user's learned Word list.
+model SuggestionPoolWord {
+  id           String   @id @default(cuid())
+  languageCode String
+  nativeText   String
+  romanization String
+  phonetic     String
+  englishGloss String
+  usageNote    String
+  whyNext      String // short rationale for why this is a good word to learn
+  category     WordCategory
+  rank         Int // 1 = most common/useful
+  createdAt    DateTime @default(now())
+
+  @@unique([languageCode, nativeText, englishGloss])
+  @@index([languageCode, category])
+  @@index([languageCode, rank])
+}
+
 model AudioClip {
   id           String   @id @default(cuid())
   languageCode String

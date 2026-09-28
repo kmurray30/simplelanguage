@@ -7,16 +7,15 @@ import { EditWordDialog } from "./EditWordDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { deleteWord } from "@/lib/api-client";
-import type { SuggestionItem, TranslationCandidate, Word } from "@/types";
+import type { SuggestionItem, Word, WordDraft } from "@/types";
 
-type AddSeed = { prefill: TranslationCandidate | null; initialInput: string | null };
+type AddSeed = { prefill: WordDraft | null; initialInput: string | null };
 const BLANK_SEED: AddSeed = { prefill: null, initialInput: null };
 
 export function WordListView({ initialWords }: { initialWords: Word[] }) {
   const [words, setWords] = useState<Word[]>(initialWords);
   const [addOpen, setAddOpen] = useState(false);
   const [addSeed, setAddSeed] = useState<AddSeed>(BLANK_SEED);
-  const [quickInput, setQuickInput] = useState("");
   const [editingWord, setEditingWord] = useState<Word | null>(null);
   const [deletingWord, setDeletingWord] = useState<Word | null>(null);
 
@@ -45,13 +44,9 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
     setAddOpen(true);
   }
 
-  function handleQuickAdd(e: React.FormEvent) {
-    e.preventDefault();
-    const text = quickInput.trim();
-    if (!text) return;
+  function handleQuickAdd(text: string) {
     setAddSeed({ prefill: null, initialInput: text });
     setAddOpen(true);
-    setQuickInput("");
   }
 
   return (
@@ -77,28 +72,10 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
         onDelete={(word) => setDeletingWord(word)}
       />
 
-      <form
-        onSubmit={handleQuickAdd}
-        className="rounded-2xl border border-border bg-surface p-3 flex gap-2"
-      >
-        <input
-          value={quickInput}
-          onChange={(e) => setQuickInput(e.target.value)}
-          placeholder="Type an English or Chinese word to add…"
-          className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
-        />
-        <button
-          type="submit"
-          disabled={!quickInput.trim()}
-          className="shrink-0 px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
-        >
-          Add word
-        </button>
-      </form>
-
       <SuggestionsPanel
         words={words}
         onPick={handlePickSuggestion}
+        onQuickAdd={handleQuickAdd}
         onRemove={(id) => {
           const word = words.find((w) => w.id === id);
           if (word) handleDelete(word);

@@ -6,7 +6,7 @@ import { CandidateCard } from "./CandidateCard";
 import { CategorySelect } from "./CategorySelect";
 import { SkeletonCandidateCard } from "./Skeleton";
 import { translate, createWord } from "@/lib/api-client";
-import type { Direction, TranslationCandidate, Word } from "@/types";
+import type { Direction, TranslationCandidate, Word, WordDraft } from "@/types";
 import { clsx } from "clsx";
 
 const CJK_PATTERN = /[一-鿿]/;
@@ -21,7 +21,7 @@ export function AddWordDialog({
   open: boolean;
   onClose: () => void;
   onCreated: (word: Word) => void;
-  prefill?: TranslationCandidate | null;
+  prefill?: WordDraft | null;
   initialInput?: string | null;
 }) {
   return (
@@ -53,7 +53,7 @@ function AddWordFormBody({
   onClose,
   onCreated,
 }: {
-  prefill: TranslationCandidate | null;
+  prefill: WordDraft | null;
   initialInput: string | null;
   onClose: () => void;
   onCreated: (word: Word) => void;
@@ -63,8 +63,8 @@ function AddWordFormBody({
     initialInput && CJK_PATTERN.test(initialInput) ? "zh2en" : "en2zh",
   );
   const [input, setInput] = useState(initialInput ?? "");
-  const [candidates, setCandidates] = useState<TranslationCandidate[]>(prefill ? [prefill] : []);
-  const [selected, setSelected] = useState<TranslationCandidate | null>(prefill);
+  const [candidates, setCandidates] = useState<TranslationCandidate[]>([]);
+  const [selected, setSelected] = useState<WordDraft | null>(prefill);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
