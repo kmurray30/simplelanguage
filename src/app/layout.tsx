@@ -13,6 +13,10 @@ const inter = Inter({
 // `subsets` only controls what next/font preloads, not which unicode-range @font-face blocks
 // are included (Google Fonts always returns the full family CSS) - and these CJK families
 // don't expose a CJK-named subset to select anyway, so preload is disabled instead.
+// Note: Turbopack builds can intermittently fail resolving these fonts with "next/font/google
+// queries have exactly one entry" (vercel/next.js#99114, a Google Fonts CDN response shape
+// Turbopack mis-serializes) - a plain retry of the build (not a Railway "redeploy", which
+// replays the prior build rather than re-fetching) has resolved it every time so far.
 const notoSansSC = Noto_Sans_SC({
   variable: "--font-noto-sc",
   weight: ["400", "500", "700"],
