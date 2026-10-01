@@ -60,6 +60,7 @@ async function generateForLanguage(languageCode: LanguageCode) {
 }
 
 async function main() {
+  console.log(`[word-bank] starting generation for: ${LANGUAGE_CODES.join(", ")}`);
   await Promise.all(LANGUAGE_CODES.map((code) => generateForLanguage(code)));
 }
 
