@@ -7,12 +7,18 @@ import { EditWordDialog } from "./EditWordDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { deleteWord } from "@/lib/api-client";
-import type { Word, WordDraft } from "@/types";
+import type { Word, WordDraft, LanguageCode } from "@/types";
 
 type AddSeed = { prefill: WordDraft | null; initialInput: string | null };
 const BLANK_SEED: AddSeed = { prefill: null, initialInput: null };
 
-export function WordListView({ initialWords }: { initialWords: Word[] }) {
+export function WordListView({
+  initialWords,
+  languageCode,
+}: {
+  initialWords: Word[];
+  languageCode: LanguageCode;
+}) {
   const [words, setWords] = useState<Word[]>(initialWords);
   const [addOpen, setAddOpen] = useState(false);
   const [addSeed, setAddSeed] = useState<AddSeed>(BLANK_SEED);
@@ -74,6 +80,7 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
 
       <SuggestionsPanel
         words={words}
+        languageCode={languageCode}
         onPick={handlePickSuggestion}
         onQuickAdd={handleQuickAdd}
         onRemove={(id) => {
@@ -84,12 +91,18 @@ export function WordListView({ initialWords }: { initialWords: Word[] }) {
 
       <AddWordDialog
         open={addOpen}
+        languageCode={languageCode}
         onClose={() => setAddOpen(false)}
         onCreated={handleCreated}
         prefill={addSeed.prefill}
         initialInput={addSeed.initialInput}
       />
-      <EditWordDialog word={editingWord} onClose={() => setEditingWord(null)} onUpdated={handleUpdated} />
+      <EditWordDialog
+        word={editingWord}
+        languageCode={languageCode}
+        onClose={() => setEditingWord(null)}
+        onUpdated={handleUpdated}
+      />
       <ConfirmDialog
         open={!!deletingWord}
         title="Delete this word?"

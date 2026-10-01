@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchSuggestions, searchSuggestions, ensureSuggestion } from "@/lib/api-client";
-import type { CategoryCount, SearchResultItem, SuggestionItem, Word, WordCategory, WordDraft } from "@/types";
+import { LANGUAGES } from "@/lib/languages";
+import type {
+  CategoryCount,
+  SearchResultItem,
+  SuggestionItem,
+  Word,
+  WordCategory,
+  WordDraft,
+  LanguageCode,
+} from "@/types";
 import { SuggestionCard } from "./SuggestionCard";
 import { FilterChip } from "./FilterChip";
 import { categoryLabel } from "@/lib/categories";
@@ -14,15 +23,18 @@ const SEARCH_DEBOUNCE_MS = 350;
 
 export function SuggestionsPanel({
   words,
+  languageCode,
   onPick,
   onRemove,
   onQuickAdd,
 }: {
   words: Word[];
+  languageCode: LanguageCode;
   onPick: (item: WordDraft) => void;
   onRemove: (wordId: string) => void;
   onQuickAdd: (text: string) => void;
 }) {
+  const lang = LANGUAGES[languageCode];
   const [items, setItems] = useState<SuggestionItem[] | null>(null);
   const [categoryCounts, setCategoryCounts] = useState<CategoryCount[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<WordCategory | "all">("all");
@@ -34,26 +46,29 @@ export function SuggestionsPanel({
   const [searching, setSearching] = useState(false);
   const searchRequestId = useRef(0);
 
-  async function load(category: WordCategory | "all") {
-    setLoading(true);
-    setError(null);
-    try {
-      const results = await fetchSuggestions(6, category);
-      setItems(results.suggestions);
-      setCategoryCounts(results.categoryCounts);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't load suggestions");
-    } finally {
-      setLoading(false);
-    }
-  }
+  const load = useCallback(
+    async (category: WordCategory | "all") => {
+      setLoading(true);
+      setError(null);
+      try {
+        const results = await fetchSuggestions(languageCode, 6, category);
+        setItems(results.suggestions);
+        setCategoryCounts(results.categoryCounts);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Couldn't load suggestions");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [languageCode],
+  );
 
   useEffect(() => {
     // Runs on mount and whenever the category filter changes - a legitimate fetch-on-change,
     // not a synchronous render-loop setState.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load(categoryFilter);
-  }, [categoryFilter]);
+  }, [categoryFilter, load]);
 
   useEffect(() => {
     const q = quickInput.trim();
@@ -68,7 +83,7 @@ export function SuggestionsPanel({
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const results = await searchSuggestions(q);
+        const results = await searchSuggestions(languageCode, q);
         if (requestId === searchRequestId.current) setSearchResults(results);
       } catch {
         if (requestId === searchRequestId.current) setSearchResults([]);
@@ -77,7 +92,7 @@ export function SuggestionsPanel({
       }
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [quickInput]);
+  }, [quickInput, languageCode]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -89,7 +104,7 @@ export function SuggestionsPanel({
 
   async function resolveSearchResultAudio(index: number, item: SearchResultItem): Promise<string> {
     if (item.poolId) return `/api/suggestions/${item.poolId}/audio`;
-    const id = await ensureSuggestion(item);
+    const id = await ensureSuggestion(languageCode, item);
     setSearchResults((prev) =>
       prev ? prev.map((r, i) => (i === index ? { ...r, source: "pool" as const, poolId: id } : r)) : prev,
     );
@@ -112,7 +127,7 @@ export function SuggestionsPanel({
         <input
           value={quickInput}
           onChange={(e) => setQuickInput(e.target.value)}
-          placeholder="Search or type an English or Chinese word to add…"
+          placeholder={`Search or type an English or ${lang.name} word to add…`}
           className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
         <button

@@ -1,27 +1,36 @@
 import { PrismaClient } from "@prisma/client";
-import { DEFAULT_ZH_VOICE } from "../src/lib/constants";
+import { LANGUAGES } from "../src/lib/languages";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.language.upsert({
-    where: { code: "zh" },
-    update: { defaultVoiceId: DEFAULT_ZH_VOICE },
-    create: {
-      code: "zh",
-      name: "Chinese",
-      defaultVoiceId: DEFAULT_ZH_VOICE,
-    },
-  });
+  for (const lang of Object.values(LANGUAGES)) {
+    await prisma.language.upsert({
+      where: { code: lang.code },
+      update: { name: lang.name, defaultVoiceId: lang.defaultVoiceId },
+      create: {
+        code: lang.code,
+        name: lang.name,
+        defaultVoiceId: lang.defaultVoiceId,
+      },
+    });
 
-  // Self-heal: unlink any word whose cached audio was generated with a voice that's no longer
-  // the default (e.g. after switching TTS providers/voices) so it regenerates on next play.
-  const stale = await prisma.word.updateMany({
-    where: { audioClip: { voiceId: { not: DEFAULT_ZH_VOICE } } },
-    data: { audioClipId: null },
-  });
-  if (stale.count > 0) {
-    console.log(`Unlinked ${stale.count} word(s) with stale-voice audio for regeneration.`);
+    // Self-heal: unlink any word in this language whose cached audio was generated with a
+    // voice that's no longer this language's default (e.g. after switching TTS voices) so
+    // it regenerates on next play. Scoped per-language so one language's voice change can't
+    // wrongly wipe another language's audio.
+    const stale = await prisma.word.updateMany({
+      where: {
+        languageCode: lang.code,
+        audioClip: { voiceId: { not: lang.defaultVoiceId } },
+      },
+      data: { audioClipId: null },
+    });
+    if (stale.count > 0) {
+      console.log(
+        `Unlinked ${stale.count} ${lang.code} word(s) with stale-voice audio for regeneration.`,
+      );
+    }
   }
 }
 

@@ -4,21 +4,30 @@ import { useState } from "react";
 import { Modal } from "./Modal";
 import { CategorySelect } from "./CategorySelect";
 import { updateWord } from "@/lib/api-client";
-import type { Word } from "@/types";
+import { LANGUAGES } from "@/lib/languages";
+import type { Word, LanguageCode } from "@/types";
 
 export function EditWordDialog({
   word,
+  languageCode,
   onClose,
   onUpdated,
 }: {
   word: Word | null;
+  languageCode: LanguageCode;
   onClose: () => void;
   onUpdated: (word: Word) => void;
 }) {
   return (
     <Modal open={!!word} onClose={onClose} wide>
       {word && (
-        <EditWordFormBody key={word.id} word={word} onClose={onClose} onUpdated={onUpdated} />
+        <EditWordFormBody
+          key={word.id}
+          word={word}
+          languageCode={languageCode}
+          onClose={onClose}
+          onUpdated={onUpdated}
+        />
       )}
     </Modal>
   );
@@ -26,13 +35,16 @@ export function EditWordDialog({
 
 function EditWordFormBody({
   word,
+  languageCode,
   onClose,
   onUpdated,
 }: {
   word: Word;
+  languageCode: LanguageCode;
   onClose: () => void;
   onUpdated: (word: Word) => void;
 }) {
+  const lang = LANGUAGES[languageCode];
   const [nativeText, setNativeText] = useState(word.nativeText);
   const [englishGloss, setEnglishGloss] = useState(word.englishGloss);
   const [phonetic, setPhonetic] = useState(word.phonetic);
@@ -67,9 +79,9 @@ function EditWordFormBody({
     <div className="p-6 space-y-3">
       <h2 className="text-lg font-medium">Edit word</h2>
 
-      <Field label="Chinese (hanzi)">
+      <Field label={lang.nativeFieldLabel}>
         <input
-          className="hanzi text-lg w-full rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="native-text text-lg w-full rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
           value={nativeText}
           onChange={(e) => setNativeText(e.target.value)}
         />
@@ -102,8 +114,9 @@ function EditWordFormBody({
 
       {nativeTextChanged && (
         <p className="text-xs text-amber-600">
-          Changing the hanzi will regenerate the pinyin and re-synthesize the audio next time
-          it&apos;s played.
+          {lang.needsRomanization
+            ? "Changing the native text will regenerate the romanization and re-synthesize the audio next time it's played."
+            : "Changing the native text will re-synthesize the audio next time it's played."}
         </p>
       )}
       {error && <p className="text-sm text-red-500">{error}</p>}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { toRomanization } from "@/lib/pinyin";
+import { romanize } from "@/lib/romanize";
 import { EnsureSuggestionSchema } from "@/lib/schemas";
 
 // Promotes a live LLM-only search result into a real SuggestionPoolWord row, so it becomes
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { languageCode, nativeText, phonetic, englishGloss, usageNote, category } = parsed.data;
-  const romanization = toRomanization(nativeText);
+  const romanization = await romanize(languageCode, nativeText);
 
   const existing = await prisma.suggestionPoolWord.findUnique({
     where: { languageCode_nativeText_englishGloss: { languageCode, nativeText, englishGloss } },

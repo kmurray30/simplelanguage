@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateTranslationCandidates } from "@/lib/openai";
-import { toRomanization } from "@/lib/pinyin";
+import { romanize } from "@/lib/romanize";
 import { detectDirection } from "@/lib/text";
+import { LANGUAGES, isLanguageCode } from "@/lib/languages";
 import type { SearchResultItem } from "@/types";
 
 const MAX_RESULTS = 8;
@@ -25,7 +26,10 @@ function scorePoolMatch(
 }
 
 export async function GET(req: NextRequest) {
-  const languageCode = req.nextUrl.searchParams.get("languageCode") ?? "zh";
+  const languageCode = req.nextUrl.searchParams.get("languageCode");
+  if (!isLanguageCode(languageCode)) {
+    return NextResponse.json({ error: "Missing or invalid languageCode" }, { status: 400 });
+  }
   const q = (req.nextUrl.searchParams.get("q") ?? "").trim();
   if (!q) return NextResponse.json({ results: [] });
 
@@ -37,7 +41,7 @@ export async function GET(req: NextRequest) {
       languageCode,
       nativeText: { notIn: knownNativeTexts },
       OR: [
-        { nativeText: { contains: q } },
+        { nativeText: { contains: q, mode: "insensitive" } },
         { romanization: { contains: q, mode: "insensitive" } },
         { englishGloss: { contains: q, mode: "insensitive" } },
         { usageNote: { contains: q, mode: "insensitive" } },
@@ -66,21 +70,24 @@ export async function GET(req: NextRequest) {
   let llmResults: SearchResultItem[] = [];
   if (poolResults.length < MIN_POOL_MATCHES_BEFORE_LLM_FALLBACK && q.length >= 2) {
     try {
-      const { candidates } = await generateTranslationCandidates(q, detectDirection(q));
+      const lang = LANGUAGES[languageCode];
+      const { candidates } = await generateTranslationCandidates(q, detectDirection(q, lang), lang);
       const poolNativeTexts = new Set(poolResults.map((r) => r.nativeText));
-      llmResults = candidates
-        .filter((c) => !poolNativeTexts.has(c.nativeText) && !knownNativeTexts.includes(c.nativeText))
-        .map((c) => ({
-          source: "llm" as const,
-          poolId: null,
-          nativeText: c.nativeText,
-          romanization: toRomanization(c.nativeText),
-          phonetic: c.phonetic,
-          englishGloss: c.englishGloss,
-          usageNote: c.usageNote,
-          whyNext: null,
-          category: c.category,
-        }));
+      llmResults = await Promise.all(
+        candidates
+          .filter((c) => !poolNativeTexts.has(c.nativeText) && !knownNativeTexts.includes(c.nativeText))
+          .map(async (c) => ({
+            source: "llm" as const,
+            poolId: null,
+            nativeText: c.nativeText,
+            romanization: await romanize(languageCode, c.nativeText),
+            phonetic: c.phonetic,
+            englishGloss: c.englishGloss,
+            usageNote: c.usageNote,
+            whyNext: null,
+            category: c.category,
+          })),
+      );
     } catch (e) {
       // Best-effort supplement - the pool results (if any) still stand on their own.
       console.error("search: live translation fallback failed", e);

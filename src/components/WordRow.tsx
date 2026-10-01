@@ -18,8 +18,10 @@ export function WordRow({
       <AudioButton src={`/api/words/${word.id}/audio`} />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="hanzi text-xl">{word.nativeText}</span>
-          <span className="text-sm text-foreground-muted">{word.romanization}</span>
+          <span className="native-text text-xl">{word.nativeText}</span>
+          {word.romanization && (
+            <span className="text-sm text-foreground-muted">{word.romanization}</span>
+          )}
           <span className="text-xs italic text-foreground-muted">&ldquo;{word.phonetic}&rdquo;</span>
           <CategoryBadge category={word.category} />
         </div>

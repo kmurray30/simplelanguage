@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { toRomanization } from "@/lib/pinyin";
+import { romanize } from "@/lib/romanize";
 import { WordCreateSchema } from "@/lib/schemas";
 import { triggerAudioGeneration } from "@/lib/audioCache";
+import { isLanguageCode } from "@/lib/languages";
 
 export async function GET(req: NextRequest) {
-  const languageCode = req.nextUrl.searchParams.get("languageCode") ?? "zh";
+  const languageCode = req.nextUrl.searchParams.get("languageCode");
+  if (!isLanguageCode(languageCode)) {
+    return NextResponse.json({ error: "Missing or invalid languageCode" }, { status: 400 });
+  }
 
   const words = await prisma.word.findMany({
     where: { languageCode },
@@ -38,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { languageCode, nativeText, englishGloss, phonetic, usageNote, category } = parsed.data;
-  const romanization = toRomanization(nativeText);
+  const romanization = await romanize(languageCode, nativeText);
 
   try {
     const word = await prisma.word.create({

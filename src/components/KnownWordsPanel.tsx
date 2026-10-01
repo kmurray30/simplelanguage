@@ -29,7 +29,7 @@ export function KnownWordsPanel({
       if (categoryFilter !== "all" && w.category !== categoryFilter) return false;
       if (!q) return true;
       return (
-        w.nativeText.includes(q) ||
+        w.nativeText.toLowerCase().includes(q) ||
         w.romanization.toLowerCase().includes(q) ||
         w.englishGloss.toLowerCase().includes(q)
       );

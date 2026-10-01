@@ -36,8 +36,8 @@ export function SuggestionCard({
       <AudioButton src={audioSrc} size="sm" />
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="hanzi text-lg">{nativeText}</span>
-          <span className="text-sm text-foreground-muted">{romanization}</span>
+          <span className="native-text text-lg">{nativeText}</span>
+          {romanization && <span className="text-sm text-foreground-muted">{romanization}</span>}
           <CategoryBadge category={category} />
         </div>
         <div className="text-sm font-medium mt-0.5">{englishGloss}</div>

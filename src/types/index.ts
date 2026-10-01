@@ -1,9 +1,12 @@
 export type { WordCategory } from "@/lib/categories";
 import type { WordCategory } from "@/lib/categories";
+export type { LanguageCode } from "@/lib/languages";
+import type { LanguageCode } from "@/lib/languages";
+export type { Direction } from "@/lib/schemas";
 
 export type Word = {
   id: string;
-  languageCode: string;
+  languageCode: LanguageCode;
   nativeText: string;
   romanization: string;
   phonetic: string;
@@ -50,5 +53,3 @@ export type CategoryCount = {
   category: WordCategory;
   count: number;
 };
-
-export type Direction = "en2zh" | "zh2en";

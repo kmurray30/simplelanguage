@@ -44,8 +44,10 @@ export function CandidateCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="hanzi text-xl">{candidate.nativeText}</span>
-            <span className="text-sm text-foreground-muted">{candidate.romanization}</span>
+            <span className="native-text text-xl">{candidate.nativeText}</span>
+            {candidate.romanization && (
+              <span className="text-sm text-foreground-muted">{candidate.romanization}</span>
+            )}
             <span className="text-xs italic text-foreground-muted">
               &ldquo;{candidate.phonetic}&rdquo;
             </span>

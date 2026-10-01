@@ -3,26 +3,34 @@
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AudioButton } from "./AudioButton";
+import { LANGUAGES } from "@/lib/languages";
 import { clsx } from "clsx";
-import type { Word } from "@/types";
+import type { Word, LanguageCode } from "@/types";
 
-type FrontSide = "en" | "zh";
+type FrontSide = "en" | "native";
 
-export function FlashcardDeck({ words }: { words: Word[] }) {
+export function FlashcardDeck({
+  words,
+  languageCode,
+}: {
+  words: Word[];
+  languageCode: LanguageCode;
+}) {
+  const lang = LANGUAGES[languageCode];
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [direction, setDirection] = useState(0);
   const [frontSide, setFrontSide] = useState<FrontSide>("en");
 
   const word = words[index];
-  const visibleSide: FrontSide = flipped ? (frontSide === "en" ? "zh" : "en") : frontSide;
+  const visibleSide: FrontSide = flipped ? (frontSide === "en" ? "native" : "en") : frontSide;
 
-  // Auto-plays whenever the Chinese face becomes the visible one - via flip, the front-side
-  // toggle, or navigating to a new card while already showing Chinese first. Plays directly
-  // (independent of the AudioButton below) since AnimatePresence's mode="wait" delays mounting
-  // the next card's button until the previous one's exit animation finishes.
+  // Auto-plays whenever the native-language face becomes the visible one - via flip, the
+  // front-side toggle, or navigating to a new card while already showing it first. Plays
+  // directly (independent of the AudioButton below) since AnimatePresence's mode="wait" delays
+  // mounting the next card's button until the previous one's exit animation finishes.
   useEffect(() => {
-    if (visibleSide !== "zh" || !word) return;
+    if (visibleSide !== "native" || !word) return;
     const audio = new Audio(`/api/words/${word.id}/audio`);
     audio.play().catch((err) => console.error("[FlashcardDeck] autoplay failed", err));
     return () => audio.pause();
@@ -65,14 +73,16 @@ export function FlashcardDeck({ words }: { words: Word[] }) {
       <div
         className={clsx(
           "absolute inset-0 [backface-visibility:hidden] rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center gap-3 p-8",
-          side === "zh" ? "bg-surface" : "bg-accent-soft",
+          side === "native" ? "bg-surface" : "bg-accent-soft",
         )}
         style={{ transform: `rotateY(${rotateDeg}deg)` }}
       >
-        {side === "zh" ? (
+        {side === "native" ? (
           <>
-            <span className="hanzi text-6xl">{word.nativeText}</span>
-            <span className="text-lg text-foreground-muted">{word.romanization}</span>
+            <span className="native-text text-6xl">{word.nativeText}</span>
+            {word.romanization && (
+              <span className="text-lg text-foreground-muted">{word.romanization}</span>
+            )}
             <span className="text-sm italic text-foreground-muted">
               &ldquo;{word.phonetic}&rdquo;
             </span>
@@ -102,7 +112,7 @@ export function FlashcardDeck({ words }: { words: Word[] }) {
           {index + 1} / {words.length}
         </span>
         <div className="flex rounded-full border border-border p-0.5 text-xs">
-          {(["en", "zh"] as FrontSide[]).map((side) => (
+          {(["en", "native"] as FrontSide[]).map((side) => (
             <button
               key={side}
               type="button"
@@ -117,7 +127,7 @@ export function FlashcardDeck({ words }: { words: Word[] }) {
                   : "text-foreground-muted hover:text-foreground",
               )}
             >
-              {side === "en" ? "English first" : "中文 first"}
+              {side === "en" ? "English first" : `${lang.nativeName} first`}
             </button>
           ))}
         </div>
@@ -148,7 +158,7 @@ export function FlashcardDeck({ words }: { words: Word[] }) {
               style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
             >
               {renderFace(frontSide, 0)}
-              {renderFace(frontSide === "en" ? "zh" : "en", 180)}
+              {renderFace(frontSide === "en" ? "native" : "en", 180)}
             </div>
           </motion.div>
         </AnimatePresence>

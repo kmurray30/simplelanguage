@@ -7,17 +7,20 @@ import { CategorySelect } from "./CategorySelect";
 import { SkeletonCandidateCard } from "./Skeleton";
 import { translate, createWord } from "@/lib/api-client";
 import { detectDirection } from "@/lib/text";
-import type { Direction, TranslationCandidate, Word, WordDraft } from "@/types";
+import { LANGUAGES } from "@/lib/languages";
+import type { Direction, TranslationCandidate, Word, WordDraft, LanguageCode } from "@/types";
 import { clsx } from "clsx";
 
 export function AddWordDialog({
   open,
+  languageCode,
   onClose,
   onCreated,
   prefill,
   initialInput,
 }: {
   open: boolean;
+  languageCode: LanguageCode;
   onClose: () => void;
   onCreated: (word: Word) => void;
   prefill?: WordDraft | null;
@@ -34,6 +37,7 @@ export function AddWordDialog({
                 ? `input::${initialInput}`
                 : "blank"
           }
+          languageCode={languageCode}
           prefill={prefill ?? null}
           initialInput={initialInput ?? null}
           onClose={onClose}
@@ -47,19 +51,22 @@ export function AddWordDialog({
 type Step = "search" | "confirm";
 
 function AddWordFormBody({
+  languageCode,
   prefill,
   initialInput,
   onClose,
   onCreated,
 }: {
+  languageCode: LanguageCode;
   prefill: WordDraft | null;
   initialInput: string | null;
   onClose: () => void;
   onCreated: (word: Word) => void;
 }) {
+  const lang = LANGUAGES[languageCode];
   const [step, setStep] = useState<Step>(prefill ? "confirm" : "search");
   const [direction, setDirection] = useState<Direction>(
-    initialInput ? detectDirection(initialInput) : "en2zh",
+    initialInput ? detectDirection(initialInput, lang) : "toTarget",
   );
   const [input, setInput] = useState(initialInput ?? "");
   const [candidates, setCandidates] = useState<TranslationCandidate[]>([]);
@@ -72,7 +79,7 @@ function AddWordFormBody({
     setLoading(true);
     setError(null);
     try {
-      const results = await translate(text, dir);
+      const results = await translate(languageCode, text, dir);
       setCandidates(results);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -112,6 +119,7 @@ function AddWordFormBody({
     setError(null);
     try {
       const word = await createWord({
+        languageCode,
         nativeText: selected.nativeText,
         englishGloss: selected.englishGloss,
         phonetic: selected.phonetic,
@@ -128,6 +136,10 @@ function AddWordFormBody({
   }
 
   if (step === "confirm" && selected) {
+    const footerNote = lang.romanizationFooterNote?.replace(
+      "{value}",
+      selected.romanization || "—",
+    );
     return (
       <div className="p-6 space-y-4 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between">
@@ -141,9 +153,9 @@ function AddWordFormBody({
         </div>
 
         <div className="space-y-3">
-          <Field label="Chinese (hanzi)">
+          <Field label={lang.nativeFieldLabel}>
             <input
-              className="hanzi text-lg w-full rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              className="native-text text-lg w-full rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
               value={selected.nativeText}
               onChange={(e) => setSelected({ ...selected, nativeText: e.target.value })}
             />
@@ -176,10 +188,7 @@ function AddWordFormBody({
               onChange={(category) => setSelected({ ...selected, category })}
             />
           </Field>
-          <p className="text-xs text-foreground-muted">
-            Pinyin (<span className="italic">{selected.romanization || "—"}</span>) is computed
-            automatically from the hanzi.
-          </p>
+          {footerNote && <p className="text-xs text-foreground-muted">{footerNote}</p>}
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
@@ -203,7 +212,7 @@ function AddWordFormBody({
 
       <form onSubmit={handleSubmitInput} className="space-y-3">
         <div className="flex rounded-full border border-border p-0.5 w-fit text-sm">
-          {(["en2zh", "zh2en"] as Direction[]).map((d) => (
+          {(["toTarget", "toEnglish"] as Direction[]).map((d) => (
             <button
               key={d}
               type="button"
@@ -215,7 +224,7 @@ function AddWordFormBody({
                   : "text-foreground-muted hover:text-foreground",
               )}
             >
-              {d === "en2zh" ? "English → 中文" : "中文 → English"}
+              {d === "toTarget" ? `English → ${lang.nativeName}` : `${lang.nativeName} → English`}
             </button>
           ))}
         </div>
@@ -226,9 +235,9 @@ function AddWordFormBody({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={
-              direction === "en2zh"
+              direction === "toTarget"
                 ? 'e.g. "thank you (silly and informal)"'
-                : "e.g. 谢谢 or xièxie"
+                : lang.nativeTextPlaceholder
             }
             rows={2}
             className="flex-1 rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/40"

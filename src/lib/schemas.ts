@@ -1,8 +1,11 @@
 import { z } from "zod";
 import { CATEGORY_VALUES } from "./categories";
+import { LANGUAGE_CODES } from "./languages";
 
 export const WordCategorySchema = z.enum(CATEGORY_VALUES);
 export type WordCategory = z.infer<typeof WordCategorySchema>;
+
+export const LanguageCodeSchema = z.enum(LANGUAGE_CODES);
 
 export const TranslationCandidateSchema = z.object({
   nativeText: z.string().min(1),
@@ -37,17 +40,17 @@ export const WordBankBatchResponseSchema = z.object({
 });
 export type WordBankBatchResponse = z.infer<typeof WordBankBatchResponseSchema>;
 
-export const Direction = z.enum(["en2zh", "zh2en"]);
+export const Direction = z.enum(["toTarget", "toEnglish"]);
 export type Direction = z.infer<typeof Direction>;
 
 export const TranslateRequestSchema = z.object({
-  languageCode: z.string().min(1).default("zh"),
+  languageCode: LanguageCodeSchema,
   direction: Direction,
   input: z.string().min(1).max(500),
 });
 
 export const WordCreateSchema = z.object({
-  languageCode: z.string().min(1).default("zh"),
+  languageCode: LanguageCodeSchema,
   nativeText: z.string().min(1),
   englishGloss: z.string().min(1),
   phonetic: z.string().min(1),
@@ -66,7 +69,7 @@ export const WordUpdateSchema = z.object({
 // A live search result (LLM-only, not yet in the suggestion pool) being promoted into a real
 // SuggestionPoolWord row - see /api/suggestions/ensure.
 export const EnsureSuggestionSchema = z.object({
-  languageCode: z.string().min(1).default("zh"),
+  languageCode: LanguageCodeSchema,
   nativeText: z.string().min(1),
   phonetic: z.string().min(1),
   englishGloss: z.string().min(1),

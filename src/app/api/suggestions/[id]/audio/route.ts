@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateAudioClip } from "@/lib/audioCache";
 import { serveAudioClip } from "@/lib/serveAudioClip";
 import { TtsError } from "@/lib/tts";
-import { DEFAULT_ZH_VOICE } from "@/lib/constants";
+import { LANGUAGES, DEFAULT_LANGUAGE, type LanguageCode } from "@/lib/languages";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -19,7 +19,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   let clip = word.audioClip;
   if (!clip) {
     const language = await prisma.language.findUnique({ where: { code: word.languageCode } });
-    const voiceId = language?.defaultVoiceId ?? DEFAULT_ZH_VOICE;
+    const fallbackConfig = LANGUAGES[word.languageCode as LanguageCode] ?? LANGUAGES[DEFAULT_LANGUAGE];
+    const voiceId = language?.defaultVoiceId ?? fallbackConfig.defaultVoiceId;
     try {
       clip = await getOrCreateAudioClip(word.languageCode, word.nativeText, voiceId);
     } catch (e) {

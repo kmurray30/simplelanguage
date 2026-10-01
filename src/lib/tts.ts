@@ -49,6 +49,7 @@ function parseTtsResponse(
 export async function synthesizeAudio(
   text: string,
   voiceId: string,
+  ttsLanguage: string,
 ): Promise<{ data: Buffer; mimeType: string }> {
   const token = process.env.DEEPINFRA_API_TOKEN;
   if (!token) throw new TtsError("DEEPINFRA_API_TOKEN is not set");
@@ -59,15 +60,12 @@ export async function synthesizeAudio(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    // "language" is fixed to Chinese since that's the only language this app supports today;
-    // this will need to become per-Language data (alongside defaultVoiceId) when a second
-    // language is added.
     // "speed" and "instructions" verified against a real DeepInfra call (both accepted, 200).
     // Slightly slower + an explicit clarity instruction, since this is for language learners.
     body: JSON.stringify({
       input: text,
       voice: voiceId,
-      language: "Chinese",
+      language: ttsLanguage,
       speed: 0.85,
       instructions: "Speak slowly and clearly, enunciating each syllable distinctly, as if teaching a language learner.",
     }),

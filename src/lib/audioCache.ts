@@ -1,6 +1,10 @@
 import { prisma } from "./prisma";
 import { synthesizeAudio } from "./tts";
-import { DEFAULT_ZH_VOICE } from "./constants";
+import { LANGUAGES, DEFAULT_LANGUAGE, type LanguageCode } from "./languages";
+
+function resolveLanguageConfig(languageCode: string) {
+  return LANGUAGES[languageCode as LanguageCode] ?? LANGUAGES[DEFAULT_LANGUAGE];
+}
 
 /**
  * Returns the cached AudioClip for (languageCode, text, voiceId), synthesizing and storing
@@ -13,7 +17,8 @@ export async function getOrCreateAudioClip(languageCode: string, text: string, v
   });
   if (existing) return existing;
 
-  const { data, mimeType } = await synthesizeAudio(text, voiceId);
+  const ttsLanguage = resolveLanguageConfig(languageCode).ttsLanguage;
+  const { data, mimeType } = await synthesizeAudio(text, voiceId, ttsLanguage);
 
   try {
     return await prisma.audioClip.create({
@@ -42,7 +47,7 @@ export function triggerAudioGeneration(word: {
   void (async () => {
     try {
       const language = await prisma.language.findUnique({ where: { code: word.languageCode } });
-      const voiceId = language?.defaultVoiceId ?? DEFAULT_ZH_VOICE;
+      const voiceId = language?.defaultVoiceId ?? resolveLanguageConfig(word.languageCode).defaultVoiceId;
       const clip = await getOrCreateAudioClip(word.languageCode, word.nativeText, voiceId);
       await prisma.word.update({ where: { id: word.id }, data: { audioClipId: clip.id } });
     } catch (e) {

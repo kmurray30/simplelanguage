@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CATEGORY_VALUES } from "@/lib/categories";
+import { isLanguageCode } from "@/lib/languages";
 
 function shuffle<T>(items: T[]): T[] {
   const result = [...items];
@@ -12,7 +13,10 @@ function shuffle<T>(items: T[]): T[] {
 }
 
 export async function GET(req: NextRequest) {
-  const languageCode = req.nextUrl.searchParams.get("languageCode") ?? "zh";
+  const languageCode = req.nextUrl.searchParams.get("languageCode");
+  if (!isLanguageCode(languageCode)) {
+    return NextResponse.json({ error: "Missing or invalid languageCode" }, { status: 400 });
+  }
   const count = Math.min(Number(req.nextUrl.searchParams.get("count") ?? 6) || 6, 12);
   const categoryParam = req.nextUrl.searchParams.get("category");
   const category =

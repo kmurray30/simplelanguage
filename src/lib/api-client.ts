@@ -7,6 +7,7 @@ import type {
   Direction,
   WordCategory,
   WordDraft,
+  LanguageCode,
 } from "@/types";
 
 async function handle<T>(res: Response): Promise<T> {
@@ -17,14 +18,14 @@ async function handle<T>(res: Response): Promise<T> {
   return res.json();
 }
 
-export async function fetchWords(languageCode = "zh"): Promise<Word[]> {
+export async function fetchWords(languageCode: LanguageCode): Promise<Word[]> {
   const res = await fetch(`/api/words?languageCode=${languageCode}`);
   const data = await handle<{ words: Word[] }>(res);
   return data.words;
 }
 
 export async function createWord(input: {
-  languageCode?: string;
+  languageCode: LanguageCode;
   nativeText: string;
   englishGloss: string;
   phonetic: string;
@@ -34,7 +35,7 @@ export async function createWord(input: {
   const res = await fetch("/api/words", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ languageCode: "zh", ...input }),
+    body: JSON.stringify(input),
   });
   const data = await handle<{ word: Word }>(res);
   return data.word;
@@ -65,38 +66,50 @@ export async function deleteWord(id: string): Promise<void> {
 }
 
 export async function translate(
+  languageCode: LanguageCode,
   input: string,
   direction: Direction,
 ): Promise<TranslationCandidate[]> {
   const res = await fetch("/api/translate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ languageCode: "zh", direction, input }),
+    body: JSON.stringify({ languageCode, direction, input }),
   });
   const data = await handle<{ candidates: TranslationCandidate[] }>(res);
   return data.candidates;
 }
 
 export async function fetchSuggestions(
+  languageCode: LanguageCode,
   count = 6,
   category?: WordCategory | "all",
 ): Promise<{ suggestions: SuggestionItem[]; categoryCounts: CategoryCount[] }> {
   const categoryQuery = category && category !== "all" ? `&category=${category}` : "";
-  const res = await fetch(`/api/suggestions?languageCode=zh&count=${count}${categoryQuery}`);
+  const res = await fetch(
+    `/api/suggestions?languageCode=${languageCode}&count=${count}${categoryQuery}`,
+  );
   return handle<{ suggestions: SuggestionItem[]; categoryCounts: CategoryCount[] }>(res);
 }
 
-export async function searchSuggestions(q: string): Promise<SearchResultItem[]> {
-  const res = await fetch(`/api/suggestions/search?languageCode=zh&q=${encodeURIComponent(q)}`);
+export async function searchSuggestions(
+  languageCode: LanguageCode,
+  q: string,
+): Promise<SearchResultItem[]> {
+  const res = await fetch(
+    `/api/suggestions/search?languageCode=${languageCode}&q=${encodeURIComponent(q)}`,
+  );
   const data = await handle<{ results: SearchResultItem[] }>(res);
   return data.results;
 }
 
-export async function ensureSuggestion(draft: WordDraft): Promise<string> {
+export async function ensureSuggestion(
+  languageCode: LanguageCode,
+  draft: WordDraft,
+): Promise<string> {
   const res = await fetch("/api/suggestions/ensure", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ languageCode: "zh", ...draft }),
+    body: JSON.stringify({ languageCode, ...draft }),
   });
   const data = await handle<{ id: string }>(res);
   return data.id;

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { toRomanization } from "@/lib/pinyin";
+import { romanize } from "@/lib/romanize";
 import { WordUpdateSchema } from "@/lib/schemas";
 import { triggerAudioGeneration } from "@/lib/audioCache";
+import type { LanguageCode } from "@/lib/languages";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -41,6 +42,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { nativeText, englishGloss, phonetic, usageNote, category } = parsed.data;
   const nativeTextChanged = nativeText !== undefined && nativeText !== existing.nativeText;
+  const romanization = nativeTextChanged
+    ? await romanize(existing.languageCode as LanguageCode, nativeText!)
+    : undefined;
 
   try {
     const word = await prisma.word.update({
@@ -51,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         ...(phonetic !== undefined && { phonetic }),
         ...(usageNote !== undefined && { usageNote }),
         ...(category !== undefined && { category }),
-        ...(nativeTextChanged && { romanization: toRomanization(nativeText!), audioClipId: null }),
+        ...(nativeTextChanged && { romanization, audioClipId: null }),
       },
     });
     if (nativeTextChanged) triggerAudioGeneration(word);
