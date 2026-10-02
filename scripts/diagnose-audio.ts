@@ -7,6 +7,7 @@
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
+  console.log("[diagnose-audio] starting");
   const words = await prisma.word.findMany({
     include: { audioClip: true },
     orderBy: { createdAt: "asc" },
