@@ -33,7 +33,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Chinese",
     nativeName: "中文",
     flag: "🇨🇳",
-    defaultVoiceId: "Vivian",
+    defaultVoiceId: "hAbDfiBoEcYJ6P4p2Q2O", // "Du Laoshi - Educational" (cmn-CN)
     needsRomanization: true,
     nativeFieldLabel: "Chinese (hanzi)",
     nativeTextPlaceholder: "e.g. 谢谢 or xièxie",
@@ -50,7 +50,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "French",
     nativeName: "Français",
     flag: "🇫🇷",
-    defaultVoiceId: "Dylan",
+    defaultVoiceId: "ZuJ2aigtpTf4Yb2wV80a", // "Sébastien E - Warm, Smooth" (fr-FR)
     needsRomanization: false,
     nativeFieldLabel: "French",
     nativeTextPlaceholder: "e.g. merci",
@@ -67,7 +67,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Spanish",
     nativeName: "Español",
     flag: "🇪🇸",
-    defaultVoiceId: "Eric",
+    defaultVoiceId: "rtQzMJmQhSg0YB7cp3ed", // "Joaquín - Rich and Captivating" (es-MX)
     needsRomanization: false,
     nativeFieldLabel: "Spanish",
     nativeTextPlaceholder: "e.g. gracias",
@@ -84,7 +84,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Japanese",
     nativeName: "日本語",
     flag: "🇯🇵",
-    defaultVoiceId: "Ono_Anna",
+    defaultVoiceId: "Au1h0hO3xOOAi5ayCJUn", // "Negai - Calm, Clear" (ja-JP)
     needsRomanization: true,
     nativeFieldLabel: "Japanese (kanji/kana)",
     nativeTextPlaceholder: "e.g. ありがとう or arigatou",
@@ -102,7 +102,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Korean",
     nativeName: "한국어",
     flag: "🇰🇷",
-    defaultVoiceId: "Sohee",
+    defaultVoiceId: "UmVsCJauYwXB4cGF0OlH", // "Soo - Warm Korean Teacher" (ko-KR)
     needsRomanization: true,
     nativeFieldLabel: "Korean (Hangul)",
     nativeTextPlaceholder: "e.g. 감사합니다 or gamsahamnida",
