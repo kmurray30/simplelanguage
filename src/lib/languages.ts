@@ -11,8 +11,7 @@ export type LanguageConfig = {
   name: string; // "Chinese" - used in LLM prompts and UI direction labels
   nativeName: string; // "中文" - used in UI direction labels
   flag: string; // emoji for the language switcher
-  ttsLanguage: string; // Qwen3-TTS `language` request field value
-  defaultVoiceId: string; // Qwen3-TTS preset voice name
+  defaultVoiceId: string; // ElevenLabs voice_id
   needsRomanization: boolean;
   nativeFieldLabel: string; // e.g. "Chinese (hanzi)" - add/edit dialog field label
   nativeTextPlaceholder: string; // e.g. "e.g. 谢谢 or xièxie"
@@ -34,7 +33,6 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Chinese",
     nativeName: "中文",
     flag: "🇨🇳",
-    ttsLanguage: "Chinese",
     defaultVoiceId: "Vivian",
     needsRomanization: true,
     nativeFieldLabel: "Chinese (hanzi)",
@@ -52,7 +50,6 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "French",
     nativeName: "Français",
     flag: "🇫🇷",
-    ttsLanguage: "French",
     defaultVoiceId: "Dylan",
     needsRomanization: false,
     nativeFieldLabel: "French",
@@ -70,7 +67,6 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Spanish",
     nativeName: "Español",
     flag: "🇪🇸",
-    ttsLanguage: "Spanish",
     defaultVoiceId: "Eric",
     needsRomanization: false,
     nativeFieldLabel: "Spanish",
@@ -88,7 +84,6 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Japanese",
     nativeName: "日本語",
     flag: "🇯🇵",
-    ttsLanguage: "Japanese",
     defaultVoiceId: "Ono_Anna",
     needsRomanization: true,
     nativeFieldLabel: "Japanese (kanji/kana)",
@@ -107,7 +102,6 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Korean",
     nativeName: "한국어",
     flag: "🇰🇷",
-    ttsLanguage: "Korean",
     defaultVoiceId: "Sohee",
     needsRomanization: true,
     nativeFieldLabel: "Korean (Hangul)",

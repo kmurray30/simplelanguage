@@ -17,8 +17,7 @@ export async function getOrCreateAudioClip(languageCode: string, text: string, v
   });
   if (existing) return existing;
 
-  const ttsLanguage = resolveLanguageConfig(languageCode).ttsLanguage;
-  const { data, mimeType } = await synthesizeAudio(text, voiceId, ttsLanguage);
+  const { data, mimeType } = await synthesizeAudio(text, voiceId);
 
   try {
     return await prisma.audioClip.create({
