@@ -7,6 +7,7 @@
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
+  console.log("[flush-audio-cache] starting");
   const words = await prisma.word.updateMany({
     where: { audioClipId: { not: null } },
     data: { audioClipId: null },
