@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchSuggestions, searchSuggestions, ensureSuggestion } from "@/lib/api-client";
+import { fetchSuggestions, searchSuggestions } from "@/lib/api-client";
 import { LANGUAGES } from "@/lib/languages";
 import type {
   CategoryCount,
-  SearchResultItem,
   SuggestionItem,
   Word,
   WordCategory,
@@ -42,7 +41,7 @@ export function SuggestionsPanel({
   const [error, setError] = useState<string | null>(null);
 
   const [quickInput, setQuickInput] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchResultItem[] | null>(null);
+  const [searchResults, setSearchResults] = useState<SuggestionItem[] | null>(null);
   const [searching, setSearching] = useState(false);
   const searchRequestId = useRef(0);
 
@@ -102,15 +101,6 @@ export function SuggestionsPanel({
     setQuickInput("");
   }
 
-  async function resolveSearchResultAudio(index: number, item: SearchResultItem): Promise<string> {
-    if (item.poolId) return `/api/suggestions/${item.poolId}/audio`;
-    const id = await ensureSuggestion(languageCode, item);
-    setSearchResults((prev) =>
-      prev ? prev.map((r, i) => (i === index ? { ...r, source: "pool" as const, poolId: id } : r)) : prev,
-    );
-    return `/api/suggestions/${id}/audio`;
-  }
-
   const topCategories = categoryCounts.slice(0, TOP_CATEGORY_COUNT);
   const overflowCategories = categoryCounts.slice(TOP_CATEGORY_COUNT);
   const isOverflowSelected = overflowCategories.some((c) => c.category === categoryFilter);
@@ -155,21 +145,17 @@ export function SuggestionsPanel({
             </div>
           )}
           {searchResults &&
-            searchResults.map((item, i) => {
+            searchResults.map((item) => {
               const addedWord = words.find((w) => w.nativeText === item.nativeText);
               return (
                 <SuggestionCard
-                  key={`${item.source}-${item.nativeText}-${item.englishGloss}`}
+                  key={item.poolId}
                   nativeText={item.nativeText}
                   romanization={item.romanization}
                   englishGloss={item.englishGloss}
                   category={item.category}
                   whyNext={item.whyNext}
-                  audioSrc={
-                    item.poolId
-                      ? `/api/suggestions/${item.poolId}/audio`
-                      : () => resolveSearchResultAudio(i, item)
-                  }
+                  audioSrc={`/api/suggestions/${item.poolId}/audio`}
                   added={!!addedWord}
                   onAdd={() => onPick(item)}
                   onRemove={() => addedWord && onRemove(addedWord.id)}

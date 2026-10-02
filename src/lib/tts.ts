@@ -62,12 +62,17 @@ export async function synthesizeAudio(
     },
     // "speed" and "instructions" verified against a real DeepInfra call (both accepted, 200).
     // Slightly slower + an explicit clarity instruction, since this is for language learners.
+    // max_new_tokens MUST be set explicitly: when omitted, the talker stage silently falls back
+    // to vLLM's stock default of 16 tokens (~1.1s of audio at 12.5Hz), truncating anything longer
+    // (see github.com/heiervang-technologies/ht-vllm-omni/issues/58) - 2048 is the model's own
+    // intended default and comfortably covers a single word or short phrase.
     body: JSON.stringify({
       input: text,
       voice: voiceId,
       language: ttsLanguage,
       speed: 0.85,
       instructions: "Speak slowly and clearly, enunciating each syllable distinctly, as if teaching a language learner.",
+      max_new_tokens: 2048,
     }),
   });
 

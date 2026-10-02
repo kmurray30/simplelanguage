@@ -2,11 +2,9 @@ import type {
   Word,
   TranslationCandidate,
   SuggestionItem,
-  SearchResultItem,
   CategoryCount,
   Direction,
   WordCategory,
-  WordDraft,
   LanguageCode,
 } from "@/types";
 
@@ -94,23 +92,10 @@ export async function fetchSuggestions(
 export async function searchSuggestions(
   languageCode: LanguageCode,
   q: string,
-): Promise<SearchResultItem[]> {
+): Promise<SuggestionItem[]> {
   const res = await fetch(
     `/api/suggestions/search?languageCode=${languageCode}&q=${encodeURIComponent(q)}`,
   );
-  const data = await handle<{ results: SearchResultItem[] }>(res);
+  const data = await handle<{ results: SuggestionItem[] }>(res);
   return data.results;
-}
-
-export async function ensureSuggestion(
-  languageCode: LanguageCode,
-  draft: WordDraft,
-): Promise<string> {
-  const res = await fetch("/api/suggestions/ensure", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ languageCode, ...draft }),
-  });
-  const data = await handle<{ id: string }>(res);
-  return data.id;
 }
