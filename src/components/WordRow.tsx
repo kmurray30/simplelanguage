@@ -30,7 +30,7 @@ export function WordRow({
         )}
       </div>
       <div className="flex flex-col items-center gap-1 shrink-0">
-        <AudioButton src={`/api/words/${word.id}/audio`} size="sm" />
+        <AudioButton src={`/api/words/${word.id}/audio`} size="md" />
         <IconButton onClick={onEdit} title="Edit">
           <PencilIcon className="h-4 w-4" />
         </IconButton>
