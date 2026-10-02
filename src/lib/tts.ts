@@ -64,10 +64,14 @@ export async function synthesizeAudio(
     // Slightly slower + an explicit clarity instruction, since this is for language learners.
     // max_new_tokens MUST be set explicitly: when omitted, the talker stage silently falls back
     // to vLLM's stock default of 16 tokens (~1.1s of audio at 12.5Hz), truncating anything longer
-    // (see github.com/heiervang-technologies/ht-vllm-omni/issues/58) - 2048 is the model's own
-    // intended default and comfortably covers a single word or short phrase.
+    // (see github.com/heiervang-technologies/ht-vllm-omni/issues/58) - but that's an upper ceiling,
+    // not the actual cause of truncation seen on short isolated words even with it set generously
+    // high: Qwen3-TTS has a separate, documented tendency to predict end-of-speech a beat early on
+    // short standalone inputs, clipping the last syllable (github.com/QwenLM/Qwen3-TTS/discussions/161).
+    // The community workaround - trailing pause punctuation the model treats as silence rather than
+    // content - gives it room to finish articulating before it decides to stop.
     body: JSON.stringify({
-      input: text,
+      input: `${text} …`,
       voice: voiceId,
       language: ttsLanguage,
       speed: 0.85,
