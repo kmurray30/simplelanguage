@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 
 type AudioClipLike = { audioData: unknown; mimeType: string };
@@ -10,10 +11,21 @@ export function serveAudioClip(req: NextRequest, clip: AudioClipLike): NextRespo
   const total = data.length;
   const range = req.headers.get("range");
 
+  // The URL (word/pool-word id) stays the same even when the underlying clip is regenerated
+  // (edited text, a flushed/retried synthesis, ...), so caching by URL alone would let browsers
+  // serve a stale clip forever. ETag ties the cache to the actual bytes instead: "no-cache"
+  // makes the browser always revalidate, and a matching ETag still short-circuits to a cheap
+  // 304 with no body, so an unchanged clip costs no more than before.
+  const etag = `"${createHash("md5").update(data).digest("hex")}"`;
+  if (req.headers.get("if-none-match") === etag) {
+    return new NextResponse(null, { status: 304, headers: { ETag: etag, "Cache-Control": "no-cache" } });
+  }
+
   const baseHeaders = {
     "Content-Type": clip.mimeType,
-    "Cache-Control": "public, max-age=31536000, immutable",
+    "Cache-Control": "no-cache",
     "Accept-Ranges": "bytes",
+    ETag: etag,
   };
 
   if (range) {
