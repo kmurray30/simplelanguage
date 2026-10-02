@@ -30,7 +30,7 @@ export function WordRow({
           <p className="text-xs text-foreground-muted mt-1 line-clamp-1">{word.usageNote}</p>
         )}
       </div>
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+      <div className="flex items-center gap-1 shrink-0">
         <button
           onClick={onEdit}
           className="text-xs px-2.5 py-1.5 rounded-full text-foreground-muted hover:bg-surface-muted hover:text-foreground transition-colors"
