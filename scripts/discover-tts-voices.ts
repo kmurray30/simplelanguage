@@ -13,6 +13,7 @@ const LANGUAGES: { code: string; name: string }[] = [
 ];
 
 async function main() {
+  console.log("[discover-voices] starting");
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) throw new Error("ELEVENLABS_API_KEY is not set");
 
