@@ -6,7 +6,7 @@
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
-  console.log("[flush-audio-cache] starting");
+  console.log("[flush-audio-cache] starting (round 2 - trailing-pause padding fix)");
   const words = await prisma.word.updateMany({
     where: { audioClipId: { not: null } },
     data: { audioClipId: null },
