@@ -51,7 +51,7 @@ model Word {
   phonetic     String // English-reader-friendly respelling, e.g. "syeh-syeh" -- LLM-generated
   englishGloss String // natural, commonly-used translation (can be unstructured, e.g. "thanks (casual)")
   usageNote    String? // short context note: how/when it's actually used
-  category     WordCategory @default(OTHER) // normalized learning-unit category, LLM-assigned
+  categories   WordCategory[] // normalized learning-unit categories, LLM-assigned - a word can belong to more than one (e.g. "hello" is both GREETINGS and BASICS)
 
   audioClipId String?
   audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])
@@ -61,7 +61,7 @@ model Word {
 
   @@unique([languageCode, nativeText, englishGloss])
   @@index([languageCode])
-  @@index([languageCode, category])
+  @@index([categories], type: Gin)
 }
 
 // Pre-generated, ranked, category-tagged pool of common words used to serve "words to learn
@@ -76,7 +76,7 @@ model SuggestionPoolWord {
   englishGloss String
   usageNote    String
   whyNext      String // short rationale for why this is a good word to learn
-  category     WordCategory
+  categories   WordCategory[]
   rank         Int // 1 = most common/useful - words added on demand via search get MAX(rank)+1
 
   audioClipId String?
@@ -85,7 +85,7 @@ model SuggestionPoolWord {
   createdAt DateTime @default(now())
 
   @@unique([languageCode, nativeText, englishGloss])
-  @@index([languageCode, category])
+  @@index([categories], type: Gin)
   @@index([languageCode, rank])
 }
 

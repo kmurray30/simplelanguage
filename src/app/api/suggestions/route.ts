@@ -27,20 +27,19 @@ export async function GET(req: NextRequest) {
   const known = await prisma.word.findMany({ where: { languageCode }, select: { nativeText: true } });
   const knownNativeTexts = known.map((w) => w.nativeText);
 
-  const [pool, categoryCountsRaw] = await Promise.all([
+  const [pool, eligibleForCounts] = await Promise.all([
     prisma.suggestionPoolWord.findMany({
       where: {
         languageCode,
-        ...(category && { category: category as (typeof CATEGORY_VALUES)[number] }),
+        ...(category && { categories: { has: category as (typeof CATEGORY_VALUES)[number] } }),
         nativeText: { notIn: knownNativeTexts },
       },
       orderBy: { rank: "asc" },
       take: Math.max(count * 4, count),
     }),
-    prisma.suggestionPoolWord.groupBy({
-      by: ["category"],
+    prisma.suggestionPoolWord.findMany({
       where: { languageCode, nativeText: { notIn: knownNativeTexts } },
-      _count: { _all: true },
+      select: { categories: true },
     }),
   ]);
 
@@ -54,11 +53,19 @@ export async function GET(req: NextRequest) {
       englishGloss: w.englishGloss,
       usageNote: w.usageNote,
       whyNext: w.whyNext,
-      category: w.category,
+      categories: w.categories,
     }));
 
-  const categoryCounts = categoryCountsRaw
-    .map((c) => ({ category: c.category, count: c._count._all }))
+  // No groupBy over an array column - tally each word's categories in JS instead (pool size
+  // per language is small enough, in the thousands, that this is cheap).
+  const countByCategory = new Map<string, number>();
+  for (const w of eligibleForCounts) {
+    for (const c of w.categories) {
+      countByCategory.set(c, (countByCategory.get(c) ?? 0) + 1);
+    }
+  }
+  const categoryCounts = Array.from(countByCategory.entries())
+    .map(([category, count]) => ({ category, count }))
     .sort((a, b) => b.count - a.count);
 
   return NextResponse.json({ suggestions, categoryCounts });

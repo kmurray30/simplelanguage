@@ -16,8 +16,10 @@ import {
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const CATEGORY_LIST_PROMPT = CATEGORIES.map((c) => `${c.value} (${c.label})`).join(", ");
-const CATEGORY_RULE = `- "category" must be exactly one of these normalized values, whichever fits best (use
-  OTHER only if nothing else reasonably applies): ${CATEGORY_LIST_PROMPT}.`;
+const CATEGORY_RULE = `- "categories" must be every normalized value from this list that reasonably applies
+  (most words fit more than one - e.g. a core everyday word like "hello" or "thanks" should
+  include BASICS in addition to its more specific category like GREETINGS). Include at least
+  one; use OTHER only if nothing else reasonably applies: ${CATEGORY_LIST_PROMPT}.`;
 
 function translatorSystemPrompt(lang: LanguageConfig): string {
   const romanizationRule = lang.needsRomanization
@@ -66,8 +68,10 @@ ${CATEGORY_RULE}`;
 
 const CATEGORIZE_SYSTEM_PROMPT = `You are organizing a vocabulary list into normalized learning-unit
 categories, the way a language course would group words into units (greetings, food, travel,
-etc). You are given a list of words (id, native text, English gloss). For each one, assign
-exactly one category id from this fixed list, whichever fits best - use OTHER only if nothing
+etc). You are given a list of words (id, native text, English gloss). For each one, assign every
+category id from this fixed list that reasonably applies - most words fit more than one (e.g. a
+core everyday word like "hello" or "thanks" should include BASICS in addition to its more
+specific category like GREETINGS). Include at least one id per word; use OTHER only if nothing
 else reasonably applies:
 ${CATEGORY_LIST_PROMPT}
 

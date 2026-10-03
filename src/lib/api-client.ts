@@ -28,7 +28,7 @@ export async function createWord(input: {
   englishGloss: string;
   phonetic: string;
   usageNote?: string;
-  category: WordCategory;
+  categories: WordCategory[];
 }): Promise<Word> {
   const res = await fetch("/api/words", {
     method: "POST",
@@ -46,7 +46,7 @@ export async function updateWord(
     englishGloss: string;
     phonetic: string;
     usageNote: string | null;
-    category: WordCategory;
+    categories: WordCategory[];
   }>,
 ): Promise<Word> {
   const res = await fetch(`/api/words/${id}`, {

@@ -9,7 +9,7 @@ export function SuggestionCard({
   nativeText,
   romanization,
   englishGloss,
-  category,
+  categories,
   whyNext,
   audioSrc,
   added,
@@ -19,7 +19,7 @@ export function SuggestionCard({
   nativeText: string;
   romanization: string;
   englishGloss: string;
-  category: WordCategory;
+  categories: WordCategory[];
   whyNext: string | null;
   audioSrc: string | (() => Promise<string>);
   added: boolean;
@@ -38,7 +38,7 @@ export function SuggestionCard({
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="native-text text-lg">{nativeText}</span>
           {romanization && <span className="text-sm text-foreground-muted">{romanization}</span>}
-          <CategoryBadge category={category} />
+          <CategoryBadge categories={categories} />
         </div>
         <div className="text-sm font-medium mt-0.5">{englishGloss}</div>
         {whyNext && <p className="text-xs text-foreground-muted mt-1">{whyNext}</p>}

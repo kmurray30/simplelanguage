@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       phonetic: true,
       englishGloss: true,
       usageNote: true,
-      category: true,
+      categories: true,
       audioClipId: true,
       createdAt: true,
       updatedAt: true,
@@ -40,7 +40,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const existing = await prisma.word.findUnique({ where: { id } });
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const { nativeText, englishGloss, phonetic, usageNote, category } = parsed.data;
+  const { nativeText, englishGloss, phonetic, usageNote, categories } = parsed.data;
   const nativeTextChanged = nativeText !== undefined && nativeText !== existing.nativeText;
   const romanization = nativeTextChanged
     ? await romanize(existing.languageCode as LanguageCode, nativeText!)
@@ -54,7 +54,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         ...(englishGloss !== undefined && { englishGloss }),
         ...(phonetic !== undefined && { phonetic }),
         ...(usageNote !== undefined && { usageNote }),
-        ...(category !== undefined && { category }),
+        ...(categories !== undefined && { categories }),
         ...(nativeTextChanged && { romanization, audioClipId: null }),
       },
     });

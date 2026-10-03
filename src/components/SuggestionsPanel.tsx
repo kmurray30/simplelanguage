@@ -153,7 +153,7 @@ export function SuggestionsPanel({
                   nativeText={item.nativeText}
                   romanization={item.romanization}
                   englishGloss={item.englishGloss}
-                  category={item.category}
+                  categories={item.categories}
                   whyNext={item.whyNext}
                   audioSrc={`/api/suggestions/${item.poolId}/audio`}
                   added={!!addedWord}
@@ -234,7 +234,7 @@ export function SuggestionsPanel({
                     nativeText={item.nativeText}
                     romanization={item.romanization}
                     englishGloss={item.englishGloss}
-                    category={item.category}
+                    categories={item.categories}
                     whyNext={item.whyNext}
                     audioSrc={`/api/suggestions/${item.poolId}/audio`}
                     added={!!addedWord}

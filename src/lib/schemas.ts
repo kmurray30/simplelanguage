@@ -13,7 +13,7 @@ export const TranslationCandidateSchema = z.object({
   englishGloss: z.string().min(1),
   usageNote: z.string().min(1),
   confidence: z.number().min(0).max(1),
-  category: WordCategorySchema,
+  categories: z.array(WordCategorySchema).min(1),
 });
 export type TranslationCandidate = z.infer<typeof TranslationCandidateSchema>;
 
@@ -31,7 +31,7 @@ export const WordBankItemSchema = z.object({
   englishGloss: z.string().min(1),
   usageNote: z.string().min(1),
   whyNext: z.string().min(1),
-  category: WordCategorySchema,
+  categories: z.array(WordCategorySchema).min(1),
 });
 export type WordBankItem = z.infer<typeof WordBankItemSchema>;
 
@@ -55,7 +55,7 @@ export const WordCreateSchema = z.object({
   englishGloss: z.string().min(1),
   phonetic: z.string().min(1),
   usageNote: z.string().optional(),
-  category: WordCategorySchema,
+  categories: z.array(WordCategorySchema).min(1),
 });
 
 export const WordUpdateSchema = z.object({
@@ -63,7 +63,7 @@ export const WordUpdateSchema = z.object({
   englishGloss: z.string().min(1).optional(),
   phonetic: z.string().min(1).optional(),
   usageNote: z.string().nullable().optional(),
-  category: WordCategorySchema.optional(),
+  categories: z.array(WordCategorySchema).min(1).optional(),
 });
 
 export const CategorizeRequestItemSchema = z.object({
@@ -73,6 +73,6 @@ export const CategorizeRequestItemSchema = z.object({
 });
 
 export const CategorizeResponseSchema = z.object({
-  items: z.array(z.object({ id: z.string().min(1), category: WordCategorySchema })),
+  items: z.array(z.object({ id: z.string().min(1), categories: z.array(WordCategorySchema).min(1) })),
 });
 export type CategorizeResponse = z.infer<typeof CategorizeResponseSchema>;

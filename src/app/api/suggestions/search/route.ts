@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
       englishGloss: w.englishGloss,
       usageNote: w.usageNote,
       whyNext: w.whyNext,
-      category: w.category,
+      categories: w.categories,
     }));
 
   return NextResponse.json({ results });

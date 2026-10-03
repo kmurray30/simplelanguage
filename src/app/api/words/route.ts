@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       phonetic: true,
       englishGloss: true,
       usageNote: true,
-      category: true,
+      categories: true,
       audioClipId: true,
       createdAt: true,
       updatedAt: true,
@@ -41,12 +41,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { languageCode, nativeText, englishGloss, phonetic, usageNote, category } = parsed.data;
+  const { languageCode, nativeText, englishGloss, phonetic, usageNote, categories } = parsed.data;
   const romanization = await romanize(languageCode, nativeText);
 
   try {
     const word = await prisma.word.create({
-      data: { languageCode, nativeText, romanization, phonetic, englishGloss, usageNote, category },
+      data: { languageCode, nativeText, romanization, phonetic, englishGloss, usageNote, categories },
     });
     triggerAudioGeneration(word);
     return NextResponse.json({ word }, { status: 201 });

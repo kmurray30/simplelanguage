@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { WordRow } from "./WordRow";
 import { FilterChip } from "./FilterChip";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
-import type { Word } from "@/types";
+import type { Word, WordCategory } from "@/types";
 
 export function KnownWordsPanel({
   words,
@@ -16,17 +16,17 @@ export function KnownWordsPanel({
   onDelete: (word: Word) => void;
 }) {
   const [query, setQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string | "all">("all");
+  const [categoryFilter, setCategoryFilter] = useState<WordCategory | "all">("all");
 
   const presentCategories = useMemo(() => {
-    const present = new Set(words.map((w) => w.category));
+    const present = new Set(words.flatMap((w) => w.categories));
     return CATEGORIES.filter((c) => present.has(c.value));
   }, [words]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return words.filter((w) => {
-      if (categoryFilter !== "all" && w.category !== categoryFilter) return false;
+      if (categoryFilter !== "all" && !w.categories.includes(categoryFilter)) return false;
       if (!q) return true;
       return (
         w.nativeText.toLowerCase().includes(q) ||

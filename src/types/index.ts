@@ -12,7 +12,7 @@ export type Word = {
   phonetic: string;
   englishGloss: string;
   usageNote: string | null;
-  category: WordCategory;
+  categories: WordCategory[];
   hasAudio: boolean;
   createdAt: string;
   updatedAt: string;
@@ -27,7 +27,7 @@ export type WordDraft = {
   phonetic: string;
   englishGloss: string;
   usageNote: string;
-  category: WordCategory;
+  categories: WordCategory[];
 };
 
 export type TranslationCandidate = WordDraft & {

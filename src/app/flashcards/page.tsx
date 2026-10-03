@@ -23,7 +23,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
     phonetic: w.phonetic,
     englishGloss: w.englishGloss,
     usageNote: w.usageNote,
-    category: w.category,
+    categories: w.categories,
     hasAudio: w.audioClipId !== null,
     createdAt: w.createdAt.toISOString(),
     updatedAt: w.updatedAt.toISOString(),

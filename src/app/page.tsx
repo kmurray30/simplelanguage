@@ -23,7 +23,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     phonetic: w.phonetic,
     englishGloss: w.englishGloss,
     usageNote: w.usageNote,
-    category: w.category,
+    categories: w.categories,
     hasAudio: w.audioClipId !== null,
     createdAt: w.createdAt.toISOString(),
     updatedAt: w.updatedAt.toISOString(),

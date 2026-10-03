@@ -124,7 +124,7 @@ function AddWordFormBody({
         englishGloss: selected.englishGloss,
         phonetic: selected.phonetic,
         usageNote: selected.usageNote,
-        category: selected.category,
+        categories: selected.categories,
       });
       onCreated(word);
       onClose();
@@ -182,10 +182,10 @@ function AddWordFormBody({
               onChange={(e) => setSelected({ ...selected, usageNote: e.target.value })}
             />
           </Field>
-          <Field label="Category">
+          <Field label="Categories">
             <CategorySelect
-              value={selected.category}
-              onChange={(category) => setSelected({ ...selected, category })}
+              value={selected.categories}
+              onChange={(categories) => setSelected({ ...selected, categories })}
             />
           </Field>
           {footerNote && <p className="text-xs text-foreground-muted">{footerNote}</p>}
@@ -196,7 +196,12 @@ function AddWordFormBody({
         <div className="flex justify-end pt-1">
           <button
             onClick={handleSave}
-            disabled={saving || !selected.nativeText.trim() || !selected.englishGloss.trim()}
+            disabled={
+              saving ||
+              !selected.nativeText.trim() ||
+              !selected.englishGloss.trim() ||
+              selected.categories.length === 0
+            }
             className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
           >
             {saving ? "Adding…" : "Add to my list"}

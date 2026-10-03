@@ -49,7 +49,7 @@ function EditWordFormBody({
   const [englishGloss, setEnglishGloss] = useState(word.englishGloss);
   const [phonetic, setPhonetic] = useState(word.phonetic);
   const [usageNote, setUsageNote] = useState(word.usageNote ?? "");
-  const [category, setCategory] = useState(word.category);
+  const [categories, setCategories] = useState(word.categories);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +64,7 @@ function EditWordFormBody({
         englishGloss,
         phonetic,
         usageNote: usageNote || null,
-        category,
+        categories,
       });
       onUpdated(updated);
       onClose();
@@ -108,8 +108,8 @@ function EditWordFormBody({
           onChange={(e) => setUsageNote(e.target.value)}
         />
       </Field>
-      <Field label="Category">
-        <CategorySelect value={category} onChange={setCategory} />
+      <Field label="Categories">
+        <CategorySelect value={categories} onChange={setCategories} />
       </Field>
 
       {nativeTextChanged && (
@@ -130,7 +130,7 @@ function EditWordFormBody({
         </button>
         <button
           onClick={handleSave}
-          disabled={saving || !nativeText.trim() || !englishGloss.trim()}
+          disabled={saving || !nativeText.trim() || !englishGloss.trim() || categories.length === 0}
           className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
         >
           {saving ? "Saving…" : "Save changes"}

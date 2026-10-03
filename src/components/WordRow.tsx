@@ -22,7 +22,7 @@ export function WordRow({
             <span className="text-sm text-foreground-muted">{word.romanization}</span>
           )}
           <span className="text-xs italic text-foreground-muted">&ldquo;{word.phonetic}&rdquo;</span>
-          <CategoryBadge category={word.category} />
+          <CategoryBadge categories={word.categories} />
         </div>
         <div className="text-sm mt-0.5">{word.englishGloss}</div>
         {word.usageNote && (
