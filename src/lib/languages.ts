@@ -33,7 +33,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Chinese",
     nativeName: "中文",
     flag: "🇨🇳",
-    defaultVoiceId: "hAbDfiBoEcYJ6P4p2Q2O", // "Du Laoshi - Educational" (cmn-CN)
+    defaultVoiceId: "onwK4e9ZLuTAKqWW03F9", // "Daniel - Steady Broadcaster" (premade, free-tier API usable)
     needsRomanization: true,
     nativeFieldLabel: "Chinese (hanzi)",
     nativeTextPlaceholder: "e.g. 谢谢 or xièxie",
@@ -50,7 +50,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "French",
     nativeName: "Français",
     flag: "🇫🇷",
-    defaultVoiceId: "ZuJ2aigtpTf4Yb2wV80a", // "Sébastien E - Warm, Smooth" (fr-FR)
+    defaultVoiceId: "Xb7hH8MSUJpSbSDYk0k2", // "Alice - Clear, Engaging Educator" (premade, free-tier API usable)
     needsRomanization: false,
     nativeFieldLabel: "French",
     nativeTextPlaceholder: "e.g. merci",
@@ -67,7 +67,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Spanish",
     nativeName: "Español",
     flag: "🇪🇸",
-    defaultVoiceId: "rtQzMJmQhSg0YB7cp3ed", // "Joaquín - Rich and Captivating" (es-MX)
+    defaultVoiceId: "JBFqnCBsd6RMkjVDRZzb", // "George - Warm, Captivating Storyteller" (premade, free-tier API usable)
     needsRomanization: false,
     nativeFieldLabel: "Spanish",
     nativeTextPlaceholder: "e.g. gracias",
@@ -84,7 +84,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Japanese",
     nativeName: "日本語",
     flag: "🇯🇵",
-    defaultVoiceId: "Au1h0hO3xOOAi5ayCJUn", // "Negai - Calm, Clear" (ja-JP)
+    defaultVoiceId: "XrExE9yKIg1WjnnlVkGX", // "Matilda - Knowledgable, Professional" (premade, free-tier API usable)
     needsRomanization: true,
     nativeFieldLabel: "Japanese (kanji/kana)",
     nativeTextPlaceholder: "e.g. ありがとう or arigatou",
@@ -102,7 +102,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Korean",
     nativeName: "한국어",
     flag: "🇰🇷",
-    defaultVoiceId: "wGZU4vSkwwD4Sj5jpW2V", // "Martin - Teacher" (ko-KR) - "Soo" needs a paid ElevenLabs tier
+    defaultVoiceId: "hpp4J3VqNfWAUOO0d1Us", // "Bella - Professional, Bright, Warm" (premade, free-tier API usable)
     needsRomanization: true,
     nativeFieldLabel: "Korean (Hangul)",
     nativeTextPlaceholder: "e.g. 감사합니다 or gamsahamnida",
