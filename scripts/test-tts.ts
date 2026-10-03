@@ -16,7 +16,7 @@ const SAMPLES: Record<string, string> = {
 };
 
 async function main() {
-  console.log("[test-tts] starting");
+  console.log("[test-tts] starting (verification run)");
   for (const lang of Object.values(LANGUAGES)) {
     const text = SAMPLES[lang.code];
     try {
