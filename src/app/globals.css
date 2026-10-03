@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+:root {
+  --background: #faf6f0;
+  --surface: #ffffff;
+  --surface-muted: #f3ece2;
+  --foreground: #241f1a;
+  --foreground-muted: #6b6157;
+  --border: #e6dccc;
+  --accent: #b8452f;
+  --accent-foreground: #fffaf5;
+  --accent-soft: #f6e2db;
+  --native-font: var(--font-noto-sc);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #17140f;
+    --surface: #211c16;
+    --surface-muted: #2a241c;
+    --foreground: #f3ece0;
+    --foreground-muted: #a89e8e;
+    --border: #3a3226;
+    --accent: #e07a5f;
+    --accent-foreground: #1a1108;
+    --accent-soft: #3a2620;
+  }
+}
+
+/* Per-language accent + native-script font overrides, keyed off the data-lang attribute
+   set by the no-FOUC script in layout.tsx before first paint. */
+[data-lang="fr"] {
+  --accent: #2d5fa6;
+  --accent-foreground: #f5f9ff;
+  --accent-soft: #dbe8f7;
+  --native-font: var(--font-sans);
+}
+@media (prefers-color-scheme: dark) {
+  [data-lang="fr"] {
+    --accent: #6ca6e0;
+    --accent-foreground: #0d1b2a;
+    --accent-soft: #1f3350;
+  }
+}
+
+[data-lang="es"] {
+  --accent: #c08a12;
+  --accent-foreground: #fff8ec;
+  --accent-soft: #f5e3c2;
+  --native-font: var(--font-sans);
+}
+@media (prefers-color-scheme: dark) {
+  [data-lang="es"] {
+    --accent: #e0b24f;
+    --accent-foreground: #241705;
+    --accent-soft: #3d2e12;
+  }
+}
+
+[data-lang="ja"] {
+  --accent: #c23a6b;
+  --accent-foreground: #fff5f8;
+  --accent-soft: #f5dbe6;
+  --native-font: var(--font-noto-jp);
+}
+@media (prefers-color-scheme: dark) {
+  [data-lang="ja"] {
+    --accent: #e8789f;
+    --accent-foreground: #2a0c18;
+    --accent-soft: #3d1b29;
+  }
+}
+
+[data-lang="ko"] {
+  --accent: #1f7a6e;
+  --accent-foreground: #f2fbf9;
+  --accent-soft: #d7ece8;
+  --native-font: var(--font-noto-kr);
+}
+@media (prefers-color-scheme: dark) {
+  [data-lang="ko"] {
+    --accent: #4fb8a8;
+    --accent-foreground: #06211d;
+    --accent-soft: #163631;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-inter);
+  --font-native: var(--native-font);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.native-text {
+  font-family: var(--font-native), var(--font-sans), sans-serif;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.2s ease-out;
+}

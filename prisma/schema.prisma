@@ -1,0 +1,104 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Keep in sync with CATEGORIES in src/lib/categories.ts.
+enum WordCategory {
+  BASICS
+  GREETINGS
+  PEOPLE_FAMILY
+  NUMBERS_COUNTING
+  TIME_DATE
+  FOOD_DRINK
+  RESTAURANT_DINING
+  SHOPPING
+  TRAVEL_TRANSPORTATION
+  DIRECTIONS_PLACES
+  HOME_DAILY_LIFE
+  WORK_SCHOOL
+  HEALTH_BODY
+  WEATHER_NATURE
+  EMOTIONS_FEELINGS
+  DESCRIPTIONS_COLORS
+  ANIMALS
+  HOBBIES_ENTERTAINMENT
+  TECHNOLOGY_COMMUNICATION
+  MONEY_FINANCE
+  CLOTHING
+  OTHER
+}
+
+model Language {
+  code           String   @id // ISO-ish short code, e.g. "zh"
+  name           String // e.g. "Chinese"
+  defaultVoiceId String? // TTS voice id used for this language, e.g. "zf_xiaobei"
+  words          Word[]
+  createdAt      DateTime @default(now())
+}
+
+model Word {
+  id           String   @id @default(cuid())
+  languageCode String
+  language     Language @relation(fields: [languageCode], references: [code])
+
+  nativeText   String // script text, e.g. "谢谢"
+  romanization String // e.g. pinyin with tone marks: "xièxie" -- always server-computed, never trusted from the LLM
+  phonetic     String // English-reader-friendly respelling, e.g. "syeh-syeh" -- LLM-generated
+  englishGloss String // natural, commonly-used translation (can be unstructured, e.g. "thanks (casual)")
+  usageNote    String? // short context note: how/when it's actually used
+  category     WordCategory @default(OTHER) // normalized learning-unit category, LLM-assigned
+
+  audioClipId String?
+  audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([languageCode, nativeText, englishGloss])
+  @@index([languageCode])
+  @@index([languageCode, category])
+}
+
+// Pre-generated, ranked, category-tagged pool of common words used to serve "words to learn
+// next" suggestions without calling the LLM per-request. Populated once by
+// scripts/generate-word-bank.ts, independent of any user's learned Word list.
+model SuggestionPoolWord {
+  id           String   @id @default(cuid())
+  languageCode String
+  nativeText   String
+  romanization String
+  phonetic     String
+  englishGloss String
+  usageNote    String
+  whyNext      String // short rationale for why this is a good word to learn
+  category     WordCategory
+  rank         Int // 1 = most common/useful - words added on demand via search get MAX(rank)+1
+
+  audioClipId String?
+  audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([languageCode, nativeText, englishGloss])
+  @@index([languageCode, category])
+  @@index([languageCode, rank])
+}
+
+model AudioClip {
+  id                  String               @id @default(cuid())
+  languageCode        String
+  text                String // exact text sent to the TTS model
+  voiceId             String
+  audioData           Bytes
+  mimeType            String
+  createdAt           DateTime             @default(now())
+  words               Word[]
+  suggestionPoolWords SuggestionPoolWord[]
+
+  @@unique([languageCode, text, voiceId])
+}
