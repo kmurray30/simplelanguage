@@ -102,7 +102,7 @@ export const LANGUAGES: Record<LanguageCode, LanguageConfig> = {
     name: "Korean",
     nativeName: "한국어",
     flag: "🇰🇷",
-    defaultVoiceId: "UmVsCJauYwXB4cGF0OlH", // "Soo - Warm Korean Teacher" (ko-KR)
+    defaultVoiceId: "wGZU4vSkwwD4Sj5jpW2V", // "Martin - Teacher" (ko-KR) - "Soo" needs a paid ElevenLabs tier
     needsRomanization: true,
     nativeFieldLabel: "Korean (Hangul)",
     nativeTextPlaceholder: "e.g. 감사합니다 or gamsahamnida",
