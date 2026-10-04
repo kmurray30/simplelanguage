@@ -6,8 +6,6 @@ import { FilterChip } from "./FilterChip";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
 import type { Word, WordCategory } from "@/types";
 
-const PAGE_SIZE = 8;
-
 export function KnownWordsPanel({
   words,
   onOpenDetail,
@@ -21,7 +19,6 @@ export function KnownWordsPanel({
 }) {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<WordCategory | "all">("all");
-  const [rawPage, setRawPage] = useState(0);
 
   const presentCategories = useMemo(() => {
     const present = new Set(words.flatMap((w) => w.categories));
@@ -41,20 +38,13 @@ export function KnownWordsPanel({
     });
   }, [words, query, categoryFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const page = Math.min(rawPage, totalPages - 1);
-  const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
   return (
     <div className="rounded-2xl border border-border bg-surface p-4 space-y-3">
       {words.length > 0 && (
         <>
           <input
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setRawPage(0);
-            }}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="Search your words…"
             className="w-full rounded-full border border-border bg-background px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
           />
@@ -64,20 +54,14 @@ export function KnownWordsPanel({
               <FilterChip
                 label="All"
                 active={categoryFilter === "all"}
-                onClick={() => {
-                  setCategoryFilter("all");
-                  setRawPage(0);
-                }}
+                onClick={() => setCategoryFilter("all")}
               />
               {presentCategories.map((c) => (
                 <FilterChip
                   key={c.value}
                   label={c.label}
                   active={categoryFilter === c.value}
-                  onClick={() => {
-                    setCategoryFilter(c.value);
-                    setRawPage(0);
-                  }}
+                  onClick={() => setCategoryFilter(c.value)}
                 />
               ))}
             </div>
@@ -85,8 +69,8 @@ export function KnownWordsPanel({
         </>
       )}
 
-      <div className="space-y-2">
-        {pageItems.map((word) => (
+      <div className="scroll-contained space-y-2 max-h-[480px] pr-2 -mr-2">
+        {filtered.map((word) => (
           <WordRow
             key={word.id}
             word={word}
@@ -108,30 +92,6 @@ export function KnownWordsPanel({
           </div>
         )}
       </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-1">
-          <button
-            type="button"
-            onClick={() => setRawPage(page - 1)}
-            disabled={page === 0}
-            className="px-3 py-1.5 rounded-full text-xs border border-border text-foreground-muted disabled:opacity-40 hover:bg-surface-muted transition-colors"
-          >
-            ← Prev
-          </button>
-          <span className="text-xs text-foreground-muted">
-            Page {page + 1} of {totalPages}
-          </span>
-          <button
-            type="button"
-            onClick={() => setRawPage(page + 1)}
-            disabled={page === totalPages - 1}
-            className="px-3 py-1.5 rounded-full text-xs border border-border text-foreground-muted disabled:opacity-40 hover:bg-surface-muted transition-colors"
-          >
-            Next →
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -108,6 +108,29 @@ body {
   font-family: var(--font-native), var(--font-sans), sans-serif;
 }
 
+/* A scrollable region that never hands an overscroll off to the page (so a drag that runs out
+   of content to scroll stays put instead of dragging the whole page) and always shows a visible
+   side scrollbar rather than relying on a transient/invisible one. */
+.scroll-contained {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.scroll-contained::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-contained::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-contained::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+.scroll-contained::-webkit-scrollbar-thumb:hover {
+  background-color: var(--foreground-muted);
+}
+
 @keyframes fade-in-up {
   from {
     opacity: 0;
