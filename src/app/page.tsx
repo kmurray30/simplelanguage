@@ -13,6 +13,23 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const words = await prisma.word.findMany({
     where: { languageCode },
     orderBy: { createdAt: "desc" },
+    // "breakdown" can be a long LLM-generated paragraph per word and is only ever shown in the
+    // detail dialog, which fetches it fresh on open (also picks up generation finishing after
+    // this page loaded) - excluding it here keeps the initial page payload and query small.
+    select: {
+      id: true,
+      languageCode: true,
+      nativeText: true,
+      romanization: true,
+      phonetic: true,
+      englishGloss: true,
+      usageNote: true,
+      categories: true,
+      starred: true,
+      audioClipId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
   const serialized: Word[] = words.map((w) => ({
@@ -24,7 +41,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     englishGloss: w.englishGloss,
     usageNote: w.usageNote,
     categories: w.categories,
-    breakdown: w.breakdown,
+    breakdown: null,
     starred: w.starred,
     hasAudio: w.audioClipId !== null,
     createdAt: w.createdAt.toISOString(),

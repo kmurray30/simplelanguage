@@ -13,6 +13,21 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
   const words = await prisma.word.findMany({
     where: { languageCode },
     orderBy: { createdAt: "asc" },
+    // FlashcardDeck never shows "breakdown" - leaving it out keeps the query and page payload small.
+    select: {
+      id: true,
+      languageCode: true,
+      nativeText: true,
+      romanization: true,
+      phonetic: true,
+      englishGloss: true,
+      usageNote: true,
+      categories: true,
+      starred: true,
+      audioClipId: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   });
 
   const serialized: Word[] = words.map((w) => ({
@@ -24,7 +39,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
     englishGloss: w.englishGloss,
     usageNote: w.usageNote,
     categories: w.categories,
-    breakdown: w.breakdown,
+    breakdown: null,
     starred: w.starred,
     hasAudio: w.audioClipId !== null,
     createdAt: w.createdAt.toISOString(),

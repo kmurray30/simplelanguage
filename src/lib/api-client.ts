@@ -22,6 +22,12 @@ export async function fetchWords(languageCode: LanguageCode): Promise<Word[]> {
   return data.words;
 }
 
+export async function fetchWord(id: string): Promise<Word> {
+  const res = await fetch(`/api/words/${id}`);
+  const data = await handle<{ word: Word }>(res);
+  return data.word;
+}
+
 export async function createWord(input: {
   languageCode: LanguageCode;
   nativeText: string;

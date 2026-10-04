@@ -1,12 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { KnownWordsPanel } from "./KnownWordsPanel";
-import { AddWordDialog } from "./AddWordDialog";
-import { EditWordDialog } from "./EditWordDialog";
-import { WordDetailDialog } from "./WordDetailDialog";
-import { ConfirmDialog } from "./ConfirmDialog";
 import { SuggestionsPanel } from "./SuggestionsPanel";
+
+// These are all modal overlays (invisible until opened) built on framer-motion - loading them
+// as separate chunks instead of bundling them into the initial page JS keeps the critical path
+// for actually seeing and using the word list smaller.
+const AddWordDialog = dynamic(() => import("./AddWordDialog").then((m) => m.AddWordDialog), {
+  ssr: false,
+});
+const EditWordDialog = dynamic(() => import("./EditWordDialog").then((m) => m.EditWordDialog), {
+  ssr: false,
+});
+const WordDetailDialog = dynamic(
+  () => import("./WordDetailDialog").then((m) => m.WordDetailDialog),
+  { ssr: false },
+);
+const ConfirmDialog = dynamic(() => import("./ConfirmDialog").then((m) => m.ConfirmDialog), {
+  ssr: false,
+});
 import { deleteWord, updateWord } from "@/lib/api-client";
 import type { Word, WordDraft, LanguageCode } from "@/types";
 
