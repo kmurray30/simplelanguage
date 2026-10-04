@@ -11,6 +11,7 @@ import { LANGUAGES, DEFAULT_LANGUAGE, type LanguageCode } from "../src/lib/langu
 const BATCH_SIZE = 15;
 
 async function main() {
+  console.log("[backfill-breakdowns] starting");
   const words = await prisma.word.findMany({
     where: { breakdown: null },
     select: { id: true, languageCode: true, nativeText: true, englishGloss: true, romanization: true },
