@@ -1,7 +1,6 @@
 "use client";
 
 import { AudioButton } from "./AudioButton";
-import { CategoryBadge } from "./CategoryBadge";
 import type { Word } from "@/types";
 
 export function WordRow({
@@ -14,7 +13,7 @@ export function WordRow({
   onDelete: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 hover:border-accent/40 transition-colors">
+    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2 hover:border-accent/40 transition-colors">
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="native-text text-xl">{word.nativeText}</span>
@@ -22,20 +21,19 @@ export function WordRow({
             <span className="text-sm text-foreground-muted">{word.romanization}</span>
           )}
           <span className="text-xs italic text-foreground-muted">&ldquo;{word.phonetic}&rdquo;</span>
-          <CategoryBadge categories={word.categories} />
         </div>
-        <div className="text-sm mt-0.5">{word.englishGloss}</div>
+        <div className="text-sm">{word.englishGloss}</div>
         {word.usageNote && (
-          <p className="text-xs text-foreground-muted mt-1 line-clamp-1">{word.usageNote}</p>
+          <p className="text-xs text-foreground-muted mt-0.5 line-clamp-1">{word.usageNote}</p>
         )}
       </div>
       <div className="flex flex-col items-center gap-1 shrink-0">
-        <AudioButton src={`/api/words/${word.id}/audio`} size="md" />
+        <AudioButton src={`/api/words/${word.id}/audio`} size="sm" />
         <IconButton onClick={onEdit} title="Edit">
-          <PencilIcon className="h-4 w-4" />
+          <PencilIcon className="h-3.5 w-3.5" />
         </IconButton>
         <IconButton onClick={onDelete} title="Delete" danger>
-          <TrashIcon className="h-4 w-4" />
+          <TrashIcon className="h-3.5 w-3.5" />
         </IconButton>
       </div>
     </div>
@@ -61,8 +59,8 @@ function IconButton({
       aria-label={title}
       className={
         danger
-          ? "h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-full border border-border text-foreground-muted hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-colors"
-          : "h-7 w-7 shrink-0 inline-flex items-center justify-center rounded-full border border-border text-foreground-muted hover:bg-surface-muted hover:text-foreground transition-colors"
+          ? "h-6 w-6 shrink-0 inline-flex items-center justify-center rounded-full border border-border text-foreground-muted hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-colors"
+          : "h-6 w-6 shrink-0 inline-flex items-center justify-center rounded-full border border-border text-foreground-muted hover:bg-surface-muted hover:text-foreground transition-colors"
       }
     >
       {children}
