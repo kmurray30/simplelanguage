@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { romanize } from "@/lib/romanize";
 import { WordUpdateSchema } from "@/lib/schemas";
 import { triggerAudioGeneration } from "@/lib/audioCache";
+import { triggerBreakdownGeneration } from "@/lib/wordBreakdown";
 import type { LanguageCode } from "@/lib/languages";
 
 type Params = { params: Promise<{ id: string }> };
@@ -20,6 +21,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       englishGloss: true,
       usageNote: true,
       categories: true,
+      breakdown: true,
       audioClipId: true,
       createdAt: true,
       updatedAt: true,
@@ -55,10 +57,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         ...(phonetic !== undefined && { phonetic }),
         ...(usageNote !== undefined && { usageNote }),
         ...(categories !== undefined && { categories }),
-        ...(nativeTextChanged && { romanization, audioClipId: null }),
+        ...(nativeTextChanged && { romanization, audioClipId: null, breakdown: null }),
       },
     });
-    if (nativeTextChanged) triggerAudioGeneration(word);
+    if (nativeTextChanged) {
+      triggerAudioGeneration(word);
+      triggerBreakdownGeneration(word);
+    }
     return NextResponse.json({ word });
   } catch (e: unknown) {
     if (typeof e === "object" && e !== null && "code" in e && e.code === "P2002") {

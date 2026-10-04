@@ -24,6 +24,7 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
     englishGloss: w.englishGloss,
     usageNote: w.usageNote,
     categories: w.categories,
+    breakdown: w.breakdown,
     hasAudio: w.audioClipId !== null,
     createdAt: w.createdAt.toISOString(),
     updatedAt: w.updatedAt.toISOString(),

@@ -10,10 +10,12 @@ const PAGE_SIZE = 8;
 
 export function KnownWordsPanel({
   words,
+  onOpenDetail,
   onEdit,
   onDelete,
 }: {
   words: Word[];
+  onOpenDetail: (word: Word) => void;
   onEdit: (word: Word) => void;
   onDelete: (word: Word) => void;
 }) {
@@ -88,6 +90,7 @@ export function KnownWordsPanel({
           <WordRow
             key={word.id}
             word={word}
+            onOpenDetail={() => onOpenDetail(word)}
             onEdit={() => onEdit(word)}
             onDelete={() => onDelete(word)}
           />

@@ -5,15 +5,28 @@ import type { Word } from "@/types";
 
 export function WordRow({
   word,
+  onOpenDetail,
   onEdit,
   onDelete,
 }: {
   word: Word;
+  onOpenDetail: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2 hover:border-accent/40 transition-colors">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpenDetail}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpenDetail();
+        }
+      }}
+      className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-3 py-2 hover:border-accent/40 transition-colors cursor-pointer"
+    >
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="native-text text-xl">{word.nativeText}</span>
@@ -54,7 +67,10 @@ function IconButton({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       title={title}
       aria-label={title}
       className={

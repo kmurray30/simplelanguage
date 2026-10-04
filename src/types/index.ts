@@ -13,6 +13,7 @@ export type Word = {
   englishGloss: string;
   usageNote: string | null;
   categories: WordCategory[];
+  breakdown: string | null;
   hasAudio: boolean;
   createdAt: string;
   updatedAt: string;

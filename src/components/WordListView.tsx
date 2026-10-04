@@ -4,6 +4,7 @@ import { useState } from "react";
 import { KnownWordsPanel } from "./KnownWordsPanel";
 import { AddWordDialog } from "./AddWordDialog";
 import { EditWordDialog } from "./EditWordDialog";
+import { WordDetailDialog } from "./WordDetailDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { deleteWord } from "@/lib/api-client";
@@ -24,6 +25,7 @@ export function WordListView({
   const [addSeed, setAddSeed] = useState<AddSeed>(BLANK_SEED);
   const [editingWord, setEditingWord] = useState<Word | null>(null);
   const [deletingWord, setDeletingWord] = useState<Word | null>(null);
+  const [detailWord, setDetailWord] = useState<Word | null>(null);
 
   function handleCreated(word: Word) {
     setWords((prev) => [word, ...prev]);
@@ -74,6 +76,7 @@ export function WordListView({
 
       <KnownWordsPanel
         words={words}
+        onOpenDetail={(word) => setDetailWord(word)}
         onEdit={(word) => setEditingWord(word)}
         onDelete={(word) => setDeletingWord(word)}
       />
@@ -103,6 +106,7 @@ export function WordListView({
         onClose={() => setEditingWord(null)}
         onUpdated={handleUpdated}
       />
+      <WordDetailDialog word={detailWord} onClose={() => setDetailWord(null)} />
       <ConfirmDialog
         open={!!deletingWord}
         title="Delete this word?"

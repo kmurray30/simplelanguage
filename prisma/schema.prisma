@@ -52,6 +52,7 @@ model Word {
   englishGloss String // natural, commonly-used translation (can be unstructured, e.g. "thanks (casual)")
   usageNote    String? // short context note: how/when it's actually used
   categories   WordCategory[] // normalized learning-unit categories, LLM-assigned - a word can belong to more than one (e.g. "hello" is both GREETINGS and BASICS)
+  breakdown    String? // LLM-generated memorization aid: morpheme/component breakdown + useful etymology - generated async after creation, so null until ready
 
   audioClipId String?
   audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])

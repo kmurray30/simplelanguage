@@ -76,3 +76,8 @@ export const CategorizeResponseSchema = z.object({
   items: z.array(z.object({ id: z.string().min(1), categories: z.array(WordCategorySchema).min(1) })),
 });
 export type CategorizeResponse = z.infer<typeof CategorizeResponseSchema>;
+
+export const WordBreakdownResponseSchema = z.object({
+  items: z.array(z.object({ id: z.string().min(1), breakdown: z.string().min(1) })),
+});
+export type WordBreakdownResponse = z.infer<typeof WordBreakdownResponseSchema>;

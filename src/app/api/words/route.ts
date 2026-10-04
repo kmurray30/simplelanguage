@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { romanize } from "@/lib/romanize";
 import { WordCreateSchema } from "@/lib/schemas";
 import { triggerAudioGeneration } from "@/lib/audioCache";
+import { triggerBreakdownGeneration } from "@/lib/wordBreakdown";
 import { isLanguageCode } from "@/lib/languages";
 
 export async function GET(req: NextRequest) {
@@ -23,6 +24,7 @@ export async function GET(req: NextRequest) {
       englishGloss: true,
       usageNote: true,
       categories: true,
+      breakdown: true,
       audioClipId: true,
       createdAt: true,
       updatedAt: true,
@@ -49,6 +51,7 @@ export async function POST(req: NextRequest) {
       data: { languageCode, nativeText, romanization, phonetic, englishGloss, usageNote, categories },
     });
     triggerAudioGeneration(word);
+    triggerBreakdownGeneration(word);
     return NextResponse.json({ word }, { status: 201 });
   } catch (e: unknown) {
     if (typeof e === "object" && e !== null && "code" in e && e.code === "P2002") {

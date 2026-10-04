@@ -7,10 +7,12 @@ import {
   TranslateResponseSchema,
   WordBankBatchResponseSchema,
   CategorizeResponseSchema,
+  WordBreakdownResponseSchema,
   type Direction,
   type TranslateResponse,
   type WordBankBatchResponse,
   type CategorizeResponse,
+  type WordBreakdownResponse,
 } from "./schemas";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -76,6 +78,31 @@ else reasonably applies:
 ${CATEGORY_LIST_PROMPT}
 
 Return one item per input id - don't skip any, don't invent new ids.`;
+
+function wordBreakdownSystemPrompt(lang: LanguageConfig): string {
+  return `You help an English-speaking student memorize ${lang.name} vocabulary by explaining
+where a word comes from and how its parts fit together - the way a good teacher would when
+asked "why does this word mean that?"
+
+You are given a list of words (id, native text with romanization, English gloss). For each one,
+write a short "breakdown" (2-5 sentences, plain prose, no markdown) that:
+- If the word is made of multiple recognizable parts (morphemes, characters, or words), identify
+  each part, its own literal meaning, and explain how they combine to produce the overall
+  meaning. Example: Korean 안녕하세요 (annyeonghaseyo, "hello") breaks down as "annyeong" (安寧,
+  peace/well-being) + "haseyo" (a polite/formal form of "to do/be"), literally something like
+  "are you at peace" - used as a formal greeting.
+- If there's other genuinely useful etymology or word-formation history that helps the word
+  stick in memory (e.g. a character's original pictographic meaning, a loanword's source
+  language, a sound pattern that recurs in related words), include it.
+- Only include what actually helps recall the word. Skip trivia, historical anecdotes, or
+  cultural facts that don't connect to the word's form or meaning.
+- If the word is a single, non-decomposable unit with no useful internal structure, say so in
+  one sentence and instead give the single best memory hook you can (a vivid image, a
+  similar-sounding English word, a pattern it shares with a common related word) - never leave
+  the student with nothing to hold onto.
+
+Return one item per input id - don't skip any, don't invent new ids.`;
+}
 
 function directionHint(direction: Direction, lang: LanguageConfig): string {
   return direction === "toTarget"
@@ -144,5 +171,30 @@ export async function categorizeWords(
 
   const parsed = completion.choices[0]?.message.parsed;
   if (!parsed) throw new Error("OpenAI returned no parsed categorize response");
+  return parsed;
+}
+
+export async function generateWordBreakdowns(
+  words: { id: string; nativeText: string; englishGloss: string; romanization: string }[],
+  lang: LanguageConfig,
+): Promise<WordBreakdownResponse> {
+  const list = words
+    .map(
+      (w) =>
+        `${w.id}: ${w.nativeText}${w.romanization ? ` (${w.romanization})` : ""} - ${w.englishGloss}`,
+    )
+    .join("\n");
+
+  const completion = await client.chat.completions.parse({
+    model: OPENAI_MODEL,
+    messages: [
+      { role: "system", content: wordBreakdownSystemPrompt(lang) },
+      { role: "user", content: `Words:\n${list}` },
+    ],
+    response_format: zodResponseFormat(WordBreakdownResponseSchema, "word_breakdown_response"),
+  });
+
+  const parsed = completion.choices[0]?.message.parsed;
+  if (!parsed) throw new Error("OpenAI returned no parsed word breakdown response");
   return parsed;
 }
