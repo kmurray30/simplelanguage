@@ -1,16 +1,20 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import { clsx } from "clsx";
 import { AudioButton } from "./AudioButton";
 import type { Word } from "@/types";
 
 export function WordRow({
   word,
   onOpenDetail,
+  onToggleStar,
   onEdit,
   onDelete,
 }: {
   word: Word;
   onOpenDetail: () => void;
+  onToggleStar: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -42,28 +46,14 @@ export function WordRow({
       </div>
       <div className="flex flex-col items-center gap-1 shrink-0">
         <AudioButton src={`/api/words/${word.id}/audio`} size="sm" />
-        <IconButton onClick={onEdit} title="Edit">
-          <PencilIcon className="h-3.5 w-3.5" />
-        </IconButton>
-        <IconButton onClick={onDelete} title="Delete" danger>
-          <TrashIcon className="h-3.5 w-3.5" />
-        </IconButton>
+        <StarButton starred={word.starred} onClick={onToggleStar} />
+        <MoreMenu onEdit={onEdit} onDelete={onDelete} />
       </div>
     </div>
   );
 }
 
-function IconButton({
-  onClick,
-  title,
-  danger,
-  children,
-}: {
-  onClick: () => void;
-  title: string;
-  danger?: boolean;
-  children: React.ReactNode;
-}) {
+function StarButton({ starred, onClick }: { starred: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -71,43 +61,108 @@ function IconButton({
         e.stopPropagation();
         onClick();
       }}
-      title={title}
-      aria-label={title}
-      className={
-        danger
-          ? "h-6 w-6 shrink-0 inline-flex items-center justify-center rounded-full border border-border text-foreground-muted hover:border-red-300 hover:bg-red-50 hover:text-red-600 transition-colors"
-          : "h-6 w-6 shrink-0 inline-flex items-center justify-center rounded-full border border-border text-foreground-muted hover:bg-surface-muted hover:text-foreground transition-colors"
-      }
+      title={starred ? "Unstar" : "Star"}
+      aria-label={starred ? "Unstar" : "Star"}
+      className={clsx(
+        "h-6 w-6 shrink-0 inline-flex items-center justify-center rounded-full border transition-colors",
+        starred
+          ? "border-accent text-accent bg-accent-soft"
+          : "border-border text-foreground-muted hover:bg-surface-muted hover:text-foreground",
+      )}
     >
-      {children}
+      <StarIcon filled={starred} className="h-3.5 w-3.5" />
     </button>
   );
 }
 
-function PencilIcon({ className }: { className?: string }) {
+function MoreMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; right: number } | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocMouseDown(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocMouseDown);
+    return () => document.removeEventListener("mousedown", onDocMouseDown);
+  }, [open]);
+
+  function toggle(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!open && wrapperRef.current) {
+      const rect = wrapperRef.current.getBoundingClientRect();
+      setCoords({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    setOpen((o) => !o);
+  }
+
   return (
-    <svg viewBox="0 0 24 24" fill="none" className={className}>
+    <div ref={wrapperRef} className="relative">
+      <button
+        type="button"
+        onClick={toggle}
+        title="More"
+        aria-label="More"
+        className="h-6 w-6 shrink-0 inline-flex items-center justify-center rounded-full border border-border text-foreground-muted hover:bg-surface-muted hover:text-foreground transition-colors"
+      >
+        <MoreIcon className="h-3.5 w-3.5" />
+      </button>
+      {open && coords && (
+        <div
+          style={{ position: "fixed", top: coords.top, right: coords.right }}
+          className="z-50 min-w-[110px] rounded-lg border border-border bg-surface shadow-lg py-1"
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onEdit();
+            }}
+            className="w-full text-left px-3 py-1.5 text-sm hover:bg-surface-muted transition-colors"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen(false);
+              onDelete();
+            }}
+            className="w-full text-left px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StarIcon({ filled, className }: { filled: boolean; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} className={className}>
       <path
-        d="M15.5 4.5l4 4L8 20H4v-4L15.5 4.5Z"
+        d="M12 3.5l2.59 5.25 5.79.84-4.19 4.08.99 5.77L12 16.9l-5.18 2.54.99-5.77-4.19-4.08 5.79-.84L12 3.5Z"
         stroke="currentColor"
-        strokeWidth="1.6"
+        strokeWidth="1.4"
         strokeLinejoin="round"
-        strokeLinecap="round"
       />
     </svg>
   );
 }
 
-function TrashIcon({ className }: { className?: string }) {
+function MoreIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <path
-        d="M5 7h14M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M7 7l1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
     </svg>
   );
 }

@@ -14,6 +14,7 @@ export type Word = {
   usageNote: string | null;
   categories: WordCategory[];
   breakdown: string | null;
+  starred: boolean;
   hasAudio: boolean;
   createdAt: string;
   updatedAt: string;

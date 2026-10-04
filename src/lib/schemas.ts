@@ -64,6 +64,7 @@ export const WordUpdateSchema = z.object({
   phonetic: z.string().min(1).optional(),
   usageNote: z.string().nullable().optional(),
   categories: z.array(WordCategorySchema).min(1).optional(),
+  starred: z.boolean().optional(),
 });
 
 export const CategorizeRequestItemSchema = z.object({

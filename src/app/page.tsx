@@ -25,6 +25,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     usageNote: w.usageNote,
     categories: w.categories,
     breakdown: w.breakdown,
+    starred: w.starred,
     hasAudio: w.audioClipId !== null,
     createdAt: w.createdAt.toISOString(),
     updatedAt: w.updatedAt.toISOString(),

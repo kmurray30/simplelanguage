@@ -7,7 +7,7 @@ import { EditWordDialog } from "./EditWordDialog";
 import { WordDetailDialog } from "./WordDetailDialog";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SuggestionsPanel } from "./SuggestionsPanel";
-import { deleteWord } from "@/lib/api-client";
+import { deleteWord, updateWord } from "@/lib/api-client";
 import type { Word, WordDraft, LanguageCode } from "@/types";
 
 type AddSeed = { prefill: WordDraft | null; initialInput: string | null };
@@ -40,6 +40,17 @@ export function WordListView({
     await deleteWord(word.id).catch(() => {
       setWords((prev) => [word, ...prev]);
     });
+  }
+
+  async function handleToggleStar(word: Word) {
+    const nextStarred = !word.starred;
+    setWords((prev) => prev.map((w) => (w.id === word.id ? { ...w, starred: nextStarred } : w)));
+    try {
+      const updated = await updateWord(word.id, { starred: nextStarred });
+      setWords((prev) => prev.map((w) => (w.id === word.id ? updated : w)));
+    } catch {
+      setWords((prev) => prev.map((w) => (w.id === word.id ? word : w)));
+    }
   }
 
   function openBlank() {
@@ -77,6 +88,7 @@ export function WordListView({
       <KnownWordsPanel
         words={words}
         onOpenDetail={(word) => setDetailWord(word)}
+        onToggleStar={handleToggleStar}
         onEdit={(word) => setEditingWord(word)}
         onDelete={(word) => setDeletingWord(word)}
       />

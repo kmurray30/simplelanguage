@@ -47,6 +47,7 @@ export async function updateWord(
     phonetic: string;
     usageNote: string | null;
     categories: WordCategory[];
+    starred: boolean;
   }>,
 ): Promise<Word> {
   const res = await fetch(`/api/words/${id}`, {

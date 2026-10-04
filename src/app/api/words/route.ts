@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
       usageNote: true,
       categories: true,
       breakdown: true,
+      starred: true,
       audioClipId: true,
       createdAt: true,
       updatedAt: true,

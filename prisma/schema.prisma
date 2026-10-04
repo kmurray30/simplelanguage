@@ -53,6 +53,7 @@ model Word {
   usageNote    String? // short context note: how/when it's actually used
   categories   WordCategory[] // normalized learning-unit categories, LLM-assigned - a word can belong to more than one (e.g. "hello" is both GREETINGS and BASICS)
   breakdown    String? // LLM-generated memorization aid: morpheme/component breakdown + useful etymology - generated async after creation, so null until ready
+  starred      Boolean        @default(false) // user-pinned - sorts to the top of whatever filter is active, and always appears in the "Starred" filter
 
   audioClipId String?
   audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])
