@@ -69,7 +69,7 @@ export function KnownWordsPanel({
         </>
       )}
 
-      <div className="scroll-contained space-y-2 max-h-[480px] pr-2 -mr-2">
+      <div className="scroll-contained space-y-2 max-h-[300px] sm:max-h-[560px] pr-2 -mr-2">
         {filtered.map((word) => (
           <WordRow
             key={word.id}
