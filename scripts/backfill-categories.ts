@@ -10,6 +10,7 @@ import { categorizeWords } from "../src/lib/openai";
 const BATCH_SIZE = 50;
 
 async function main() {
+  console.log("[backfill-categories] starting");
   const words = await prisma.word.findMany({
     select: { id: true, nativeText: true, englishGloss: true },
   });
