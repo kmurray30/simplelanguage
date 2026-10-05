@@ -63,6 +63,11 @@ export function KnownWordsPanel({
 
           <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
             <FilterChip label="All" active={filter === "all"} onClick={() => setFilter("all")} />
+            <FilterChip
+              label="Starred"
+              active={filter === "starred"}
+              onClick={() => setFilter("starred")}
+            />
             {presentCategories.map((c) => (
               <FilterChip
                 key={c.value}
@@ -71,11 +76,6 @@ export function KnownWordsPanel({
                 onClick={() => setFilter(c.value)}
               />
             ))}
-            <FilterChip
-              label="Starred"
-              active={filter === "starred"}
-              onClick={() => setFilter("starred")}
-            />
           </div>
         </>
       )}
