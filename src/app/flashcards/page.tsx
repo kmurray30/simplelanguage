@@ -1,14 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { FlashcardDeck } from "@/components/FlashcardDeck";
 import { DEFAULT_LANGUAGE, isLanguageCode } from "@/lib/languages";
+import { availableDecks, isDeckType } from "@/lib/decks";
 import type { Word } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function FlashcardsPage({ searchParams }: PageProps<"/flashcards">) {
-  const { lang } = await searchParams;
+  const { lang, deck } = await searchParams;
   const langParam = typeof lang === "string" ? lang : undefined;
   const languageCode = isLanguageCode(langParam) ? langParam : DEFAULT_LANGUAGE;
+  const available = availableDecks(languageCode);
+  const initialDeck = isDeckType(deck) && available.includes(deck) ? deck : "words";
 
   const words = await prisma.word.findMany({
     where: { languageCode },
@@ -46,5 +49,12 @@ export default async function FlashcardsPage({ searchParams }: PageProps<"/flash
     updatedAt: w.updatedAt.toISOString(),
   }));
 
-  return <FlashcardDeck key={languageCode} words={serialized} languageCode={languageCode} />;
+  return (
+    <FlashcardDeck
+      key={languageCode}
+      words={serialized}
+      languageCode={languageCode}
+      initialDeck={initialDeck}
+    />
+  );
 }
