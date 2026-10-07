@@ -13,7 +13,6 @@ type FrontSide = "en" | "native";
 
 type Face = {
   label?: string; // small uppercase caption at the top of the face
-  header?: string; // native-script glyph shown above the rest (the reveal side of a reference card)
   primary: string;
   size: "huge" | "native" | "large" | "normal";
   caption?: string; // small muted line, e.g. a letter's name
@@ -49,16 +48,15 @@ function wordCards(words: Word[]): FlashCard[] {
   }));
 }
 
-// Reference decks: the "native" face is only the symbol itself (so it works as a quiz prompt),
-// the "english" face reveals everything about it - the symbol again, its name/sound/example,
-// audio, and notes.
+// Reference decks: the "native" face is only the symbol itself, the "english" face is
+// everything about it (sound, name, example, audio, notes) but deliberately NOT the symbol - so
+// either face works as the prompt and you can quiz yourself in both directions.
 function symbolCards(languageCode: LanguageCode): FlashCard[] {
   return HANGUL_SYMBOLS.map((s) => ({
     id: `symbol:${s.jamo}`,
     native: { primary: s.jamo, size: "huge" },
     english: {
       label: s.kind,
-      header: s.jamo,
       primary: s.sound,
       size: "large",
       caption: s.name,
@@ -76,7 +74,6 @@ function syllableCards(languageCode: LanguageCode): FlashCard[] {
     native: { primary: s.block, size: "huge" },
     english: {
       label: s.section,
-      header: s.block,
       primary: s.rr,
       size: "large",
       tertiary: s.respell,
@@ -137,7 +134,6 @@ export function FlashcardDeck({
   }, [deck, words, languageCode]);
 
   const card = cards[index];
-  const visibleSide: FrontSide = flipped ? (frontSide === "en" ? "native" : "en") : frontSide;
 
   function switchDeck(next: DeckType) {
     if (next === deck) return;
@@ -154,44 +150,43 @@ export function FlashcardDeck({
     window.history.replaceState(null, "", url.toString());
   }
 
-  // Auto-plays whenever the face that carries the audio becomes the visible one - via flip, the
-  // front-side toggle, or navigating to a new card while already showing it first. Plays
-  // directly (independent of the AudioButton below) since AnimatePresence's mode="wait" delays
-  // mounting the next card's button until the previous one's exit animation finishes.
-  useEffect(() => {
-    if (!card?.audioSrc || visibleSide !== card.audioOn) return;
-    const audio = new Audio(card.audioSrc);
-    audio.play().catch((err) => console.error("[FlashcardDeck] autoplay failed", err));
-    return () => audio.pause();
-  }, [visibleSide, card]);
-
   // No manual useCallback: the React Compiler memoizes this itself (and its lint rule rejects a
-  // hand-written dependency list that doesn't match what it infers).
+  // hand-written dependency list that doesn't match what it infers). Does nothing at either end
+  // of the deck, so the card doesn't reset or jump when there's nowhere to go.
   function go(delta: number) {
+    const target = Math.max(0, Math.min(cards.length - 1, index + delta));
+    if (target === index) return;
     setDirection(delta);
-    setIndex((i) => Math.max(0, Math.min(cards.length - 1, i + delta)));
+    setIndex(target);
     setFlipped(false);
   }
 
-  // Left third of the card goes back, right third goes forward, the middle flips.
+  // Reveal first, then move on: the first activation flips the card, the next one advances.
+  function flipOrAdvance() {
+    if (flipped) go(1);
+    else setFlipped(true);
+  }
+
+  // Only the far-left fifth of the card goes back; everywhere else flips, then advances.
   function handleCardClick(e: React.MouseEvent<HTMLDivElement>) {
     // detail === 0 means a keyboard/assistive-tech activation with no real pointer position.
     if (e.detail === 0) {
-      setFlipped((f) => !f);
+      flipOrAdvance();
       return;
     }
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
-    if (x < 1 / 3) go(-1);
-    else if (x > 2 / 3) go(1);
-    else setFlipped((f) => !f);
+    if (x < 1 / 5) go(-1);
+    else flipOrAdvance();
   }
 
   useEffect(() => {
-    const total = cards.length;
+    const last = cards.length - 1;
     function navigate(delta: number) {
+      const target = Math.max(0, Math.min(last, index + delta));
+      if (target === index) return;
       setDirection(delta);
-      setIndex((i) => Math.max(0, Math.min(total - 1, i + delta)));
+      setIndex(target);
       setFlipped(false);
     }
     function onKey(e: KeyboardEvent) {
@@ -204,7 +199,7 @@ export function FlashcardDeck({
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [cards.length]);
+  }, [cards.length, index]);
 
   const sideOptions: { side: FrontSide; label: string }[] =
     deck === "words"
@@ -233,7 +228,6 @@ export function FlashcardDeck({
             {face.label}
           </span>
         )}
-        {face.header && <span className="native-text text-5xl">{face.header}</span>}
         <span className={clsx("text-center", PRIMARY_CLASS[face.size])}>{face.primary}</span>
         {face.caption && (
           <span className="native-text text-sm text-foreground-muted text-center">{face.caption}</span>
@@ -298,19 +292,19 @@ export function FlashcardDeck({
           <div
             role="button"
             tabIndex={0}
-            aria-label="Flashcard: tap the middle to flip, the sides to navigate"
+            aria-label="Flashcard: tap to flip, tap again for the next card, tap the far left to go back"
             onClick={handleCardClick}
             onKeyDown={(e) => {
               // Space is handled globally (also covers an unfocused card); Enter only fires
               // here, so handling Space too would double-toggle and cancel itself out.
               if (e.key === "Enter") {
                 e.preventDefault();
-                setFlipped((f) => !f);
+                flipOrAdvance();
               }
             }}
             className={clsx(
               "relative w-full rounded-3xl [perspective:1200px] cursor-pointer select-none [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
-              deck === "words" ? "h-72" : "h-[28rem]",
+              deck === "words" ? "h-72" : "h-96",
             )}
           >
             <AnimatePresence mode="wait" custom={direction}>
@@ -381,8 +375,8 @@ export function FlashcardDeck({
       )}
 
       <p className="text-[11px] text-foreground-muted text-center">
-        Tap the middle of the card to flip, the left/right sides to go back/forward · space and ← →
-        work too
+        Tap the card to flip it, tap again for the next one · tap the far left to go back · space
+        and ← → work too
       </p>
     </div>
   );
