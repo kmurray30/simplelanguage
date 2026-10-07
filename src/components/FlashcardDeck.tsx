@@ -12,9 +12,11 @@ import type { Word, LanguageCode } from "@/types";
 type FrontSide = "en" | "native";
 
 type Face = {
+  label?: string; // small uppercase caption at the top of the face
+  header?: string; // native-script glyph shown above the rest (the reveal side of a reference card)
   primary: string;
-  primaryNative?: boolean; // native-script styling (native font, largest size)
-  primaryLarge?: boolean; // for short non-native primaries like "g / k" or "ga"
+  size: "huge" | "native" | "large" | "normal";
+  caption?: string; // small muted line, e.g. a letter's name
   secondary?: string; // may contain **emphasis** markers
   tertiary?: string; // rendered in italics, quoted
   note?: string;
@@ -22,10 +24,10 @@ type Face = {
 
 type FlashCard = {
   id: string;
-  label?: string; // small caption on the native face, e.g. the syllable section
   native: Face;
   english: Face;
   audioSrc?: string;
+  audioOn: FrontSide; // the face that shows the audio button and auto-plays when it appears
 };
 
 function ttsSrc(languageCode: LanguageCode, text: string): string {
@@ -37,32 +39,51 @@ function wordCards(words: Word[]): FlashCard[] {
     id: `word:${w.id}`,
     native: {
       primary: w.nativeText,
-      primaryNative: true,
+      size: "native",
       secondary: w.romanization || undefined,
       tertiary: w.phonetic,
     },
-    english: { primary: w.englishGloss, note: w.usageNote ?? undefined },
+    english: { primary: w.englishGloss, size: "normal", note: w.usageNote ?? undefined },
     audioSrc: `/api/words/${w.id}/audio`,
+    audioOn: "native",
   }));
 }
 
+// Reference decks: the "native" face is only the symbol itself (so it works as a quiz prompt),
+// the "english" face reveals everything about it - the symbol again, its name/sound/example,
+// audio, and notes.
 function symbolCards(languageCode: LanguageCode): FlashCard[] {
   return HANGUL_SYMBOLS.map((s) => ({
     id: `symbol:${s.jamo}`,
-    label: s.kind,
-    native: { primary: s.jamo, primaryNative: true, secondary: s.name },
-    english: { primary: s.sound, primaryLarge: true, secondary: s.example, note: s.detail },
+    native: { primary: s.jamo, size: "huge" },
+    english: {
+      label: s.kind,
+      header: s.jamo,
+      primary: s.sound,
+      size: "large",
+      caption: s.name,
+      secondary: s.example,
+      note: s.detail,
+    },
     audioSrc: ttsSrc(languageCode, s.audioSyllable),
+    audioOn: "en",
   }));
 }
 
 function syllableCards(languageCode: LanguageCode): FlashCard[] {
   return HANGUL_SYLLABLES.map((s) => ({
     id: `syllable:${s.section}:${s.block}`,
-    label: s.section,
-    native: { primary: s.block, primaryNative: true },
-    english: { primary: s.rr, primaryLarge: true, secondary: s.respell, note: s.note },
+    native: { primary: s.block, size: "huge" },
+    english: {
+      label: s.section,
+      header: s.block,
+      primary: s.rr,
+      size: "large",
+      tertiary: s.respell,
+      note: s.note,
+    },
     audioSrc: ttsSrc(languageCode, s.block),
+    audioOn: "en",
   }));
 }
 
@@ -80,6 +101,18 @@ function renderEmphasis(text: string): ReactNode {
   );
 }
 
+const PRIMARY_CLASS: Record<Face["size"], string> = {
+  huge: "native-text text-8xl",
+  native: "native-text text-6xl",
+  large: "text-4xl font-medium",
+  normal: "text-2xl font-medium",
+};
+
+// Words flip between English and the native script; reference decks start on the bare symbol.
+function defaultFront(deck: DeckType): FrontSide {
+  return deck === "words" ? "en" : "native";
+}
+
 export function FlashcardDeck({
   words,
   languageCode,
@@ -95,7 +128,7 @@ export function FlashcardDeck({
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [direction, setDirection] = useState(0);
-  const [frontSide, setFrontSide] = useState<FrontSide>("en");
+  const [frontSide, setFrontSide] = useState<FrontSide>(defaultFront(initialDeck));
 
   const cards = useMemo<FlashCard[]>(() => {
     if (deck === "symbols") return symbolCards(languageCode);
@@ -112,6 +145,7 @@ export function FlashcardDeck({
     setIndex(0);
     setFlipped(false);
     setDirection(0);
+    setFrontSide(defaultFront(next));
     // Native history API so the deck survives a reload/back without a server round trip - the
     // App Router keeps useSearchParams in sync with pushState/replaceState.
     const url = new URL(window.location.href);
@@ -120,12 +154,12 @@ export function FlashcardDeck({
     window.history.replaceState(null, "", url.toString());
   }
 
-  // Auto-plays whenever the native-language face becomes the visible one - via flip, the
+  // Auto-plays whenever the face that carries the audio becomes the visible one - via flip, the
   // front-side toggle, or navigating to a new card while already showing it first. Plays
   // directly (independent of the AudioButton below) since AnimatePresence's mode="wait" delays
   // mounting the next card's button until the previous one's exit animation finishes.
   useEffect(() => {
-    if (visibleSide !== "native" || !card?.audioSrc) return;
+    if (!card?.audioSrc || visibleSide !== card.audioOn) return;
     const audio = new Audio(card.audioSrc);
     audio.play().catch((err) => console.error("[FlashcardDeck] autoplay failed", err));
     return () => audio.pause();
@@ -137,6 +171,20 @@ export function FlashcardDeck({
     setDirection(delta);
     setIndex((i) => Math.max(0, Math.min(cards.length - 1, i + delta)));
     setFlipped(false);
+  }
+
+  // Left third of the card goes back, right third goes forward, the middle flips.
+  function handleCardClick(e: React.MouseEvent<HTMLDivElement>) {
+    // detail === 0 means a keyboard/assistive-tech activation with no real pointer position.
+    if (e.detail === 0) {
+      setFlipped((f) => !f);
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    if (x < 1 / 3) go(-1);
+    else if (x > 2 / 3) go(1);
+    else setFlipped((f) => !f);
   }
 
   useEffect(() => {
@@ -158,10 +206,16 @@ export function FlashcardDeck({
     return () => window.removeEventListener("keydown", onKey);
   }, [cards.length]);
 
-  const sideLabels: Record<FrontSide, string> =
+  const sideOptions: { side: FrontSide; label: string }[] =
     deck === "words"
-      ? { en: "English first", native: `${lang.nativeName} first` }
-      : { en: "Sound first", native: "한글 first" };
+      ? [
+          { side: "en", label: "English first" },
+          { side: "native", label: `${lang.nativeName} first` },
+        ]
+      : [
+          { side: "native", label: deck === "symbols" ? "Symbol first" : "Syllable first" },
+          { side: "en", label: "Details first" },
+        ];
 
   function renderFace(side: FrontSide, rotateDeg: 0 | 180) {
     if (!card) return null;
@@ -169,28 +223,21 @@ export function FlashcardDeck({
     return (
       <div
         className={clsx(
-          "absolute inset-0 [backface-visibility:hidden] rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center gap-3 p-8",
+          "absolute inset-0 [backface-visibility:hidden] rounded-3xl border border-border shadow-sm flex flex-col items-center justify-center gap-2 p-6",
           side === "native" ? "bg-surface" : "bg-accent-soft",
         )}
         style={{ transform: `rotateY(${rotateDeg}deg)` }}
       >
-        {side === "native" && card.label && (
+        {face.label && (
           <span className="absolute top-4 text-[11px] uppercase tracking-wide text-foreground-muted">
-            {card.label}
+            {face.label}
           </span>
         )}
-        <span
-          className={clsx(
-            "text-center",
-            face.primaryNative
-              ? "native-text text-6xl"
-              : face.primaryLarge
-                ? "text-4xl font-medium"
-                : "text-2xl font-medium",
-          )}
-        >
-          {face.primary}
-        </span>
+        {face.header && <span className="native-text text-5xl">{face.header}</span>}
+        <span className={clsx("text-center", PRIMARY_CLASS[face.size])}>{face.primary}</span>
+        {face.caption && (
+          <span className="native-text text-sm text-foreground-muted text-center">{face.caption}</span>
+        )}
         {face.secondary && (
           <span className="text-lg text-foreground-muted text-center">
             {renderEmphasis(face.secondary)}
@@ -199,15 +246,14 @@ export function FlashcardDeck({
         {face.tertiary && (
           <span className="text-sm italic text-foreground-muted">&ldquo;{face.tertiary}&rdquo;</span>
         )}
-        {face.note && (
-          <p className="text-sm text-foreground-muted text-center max-w-sm">{face.note}</p>
-        )}
-        {side === "native" && card.audioSrc && (
-          <div onClick={(e) => e.stopPropagation()} className="mt-2">
+        {card.audioSrc && card.audioOn === side && (
+          <div onClick={(e) => e.stopPropagation()} className="mt-1">
             <AudioButton src={card.audioSrc} />
           </div>
         )}
-        <span className="absolute bottom-4 text-[11px] text-foreground-muted">tap to flip</span>
+        {face.note && (
+          <p className="text-sm text-foreground-muted text-center max-w-sm">{face.note}</p>
+        )}
       </div>
     );
   }
@@ -249,7 +295,24 @@ export function FlashcardDeck({
         </div>
       ) : (
         <>
-          <div className="relative w-full h-72 [perspective:1200px]">
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Flashcard: tap the middle to flip, the sides to navigate"
+            onClick={handleCardClick}
+            onKeyDown={(e) => {
+              // Space is handled globally (also covers an unfocused card); Enter only fires
+              // here, so handling Space too would double-toggle and cancel itself out.
+              if (e.key === "Enter") {
+                e.preventDefault();
+                setFlipped((f) => !f);
+              }
+            }}
+            className={clsx(
+              "relative w-full rounded-3xl [perspective:1200px] cursor-pointer select-none [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+              deck === "words" ? "h-72" : "h-[28rem]",
+            )}
+          >
             <AnimatePresence mode="wait" custom={direction}>
               <motion.div
                 key={card.id}
@@ -261,16 +324,7 @@ export function FlashcardDeck({
                 className="absolute inset-0"
               >
                 <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setFlipped((f) => !f)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      setFlipped((f) => !f);
-                    }
-                  }}
-                  className="w-full h-full cursor-pointer [transform-style:preserve-3d] transition-transform duration-500"
+                  className="w-full h-full [transform-style:preserve-3d] transition-transform duration-500"
                   style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
                 >
                   {renderFace(frontSide, 0)}
@@ -304,7 +358,7 @@ export function FlashcardDeck({
           </div>
 
           <div className="flex rounded-full border border-border p-0.5 text-xs">
-            {(["en", "native"] as FrontSide[]).map((side) => (
+            {sideOptions.map(({ side, label }) => (
               <button
                 key={side}
                 type="button"
@@ -319,14 +373,17 @@ export function FlashcardDeck({
                     : "text-foreground-muted hover:text-foreground",
                 )}
               >
-                {sideLabels[side]}
+                {label}
               </button>
             ))}
           </div>
         </>
       )}
 
-      <p className="text-[11px] text-foreground-muted">Tip: space to flip, ← → to navigate</p>
+      <p className="text-[11px] text-foreground-muted text-center">
+        Tap the middle of the card to flip, the left/right sides to go back/forward · space and ← →
+        work too
+      </p>
     </div>
   );
 }
