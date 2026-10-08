@@ -1,0 +1,12 @@
+▲ Next.js 16.3.5 (Turbopack)
+- Local:         http://localhost:3100
+- Network:       http://192.0.2.2:3100
+- Environments: .env
+✓ Ready in 2.3s
+✓ Running next.config.ts took 4.3s
+
+○ Compiling /quiz/symbols ...
+ GET /quiz/symbols?lang=ko 200 in 23.1s (next.js: 20.4s, application-code: 2.7s)
+ GET /quiz/symbols?lang=ko 200 in 76ms (next.js: 11ms, application-code: 65ms)
+ GET /quiz/symbols?lang=ko 200 in 66ms (next.js: 5ms, application-code: 61ms)
+[?25h

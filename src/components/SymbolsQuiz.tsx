@@ -430,7 +430,7 @@ export function SymbolsQuiz({
                     <span className="native-text text-3xl w-10 text-center">{missedItem.answer}</span>
                     <div className="flex-1 min-w-0 text-sm">
                       <div>
-                        <Emphasis text={v.text} />{" "}
+                        <Emphasis text={v.text} highlight />{" "}
                         <span className="text-foreground-muted">· {variantCode(missedItem, a.variantIndex)}</span>
                       </div>
                       <div className="text-xs text-foreground-muted">
@@ -490,8 +490,8 @@ export function SymbolsQuiz({
           >
             <p className="text-sm text-foreground-muted text-center">{variant.prompt ?? DEFAULT_PROMPT}</p>
             <div className="flex flex-col items-center gap-2 py-2">
-              <span className="text-4xl font-medium text-center">
-                <Emphasis text={variant.text} />
+              <span className="text-4xl font-normal text-foreground-muted text-center">
+                <Emphasis text={variant.text} highlight />
               </span>
               <span className="text-lg font-mono px-3 py-0.5 rounded-full bg-accent-soft">{variantCode(item, pick.variantIndex)}</span>
               {blank && (
@@ -582,7 +582,7 @@ export function SymbolsQuiz({
             )}
 
             <p className="text-sm text-foreground-muted">
-              <Emphasis text={variant.text} /> · {variantCode(item, pick.variantIndex)}
+              <Emphasis text={variant.text} highlight /> · {variantCode(item, pick.variantIndex)}
               {full && (
                 <>
                   {" "}
