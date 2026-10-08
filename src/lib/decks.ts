@@ -19,3 +19,12 @@ export function isDeckType(value: unknown): value is DeckType {
 export function availableDecks(languageCode: LanguageCode): DeckType[] {
   return languageCode === "ko" ? ["words", "symbols", "syllables"] : ["words"];
 }
+
+// Quizzes available per language. Only the Hangul Symbols quiz exists so far; the Words and
+// Syllables quizzes are listed on the hub as "coming soon".
+export const QUIZ_TYPES = ["symbols"] as const;
+export type QuizType = (typeof QUIZ_TYPES)[number];
+
+export function availableQuizzes(languageCode: LanguageCode): QuizType[] {
+  return languageCode === "ko" ? ["symbols"] : [];
+}

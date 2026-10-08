@@ -104,3 +104,55 @@ model AudioClip {
 
   @@unique([languageCode, text, voiceId])
 }
+
+// Anonymous per-browser identity (a cookie holds the id), so quiz history is private to each
+// visitor without logins. A real user account can later be attached to a Learner (or merge several).
+model Learner {
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  runs      QuizRun[]
+  stats     ItemStat[]
+}
+
+// One completed quiz. Only finished quizzes are saved.
+model QuizRun {
+  id           String   @id @default(cuid())
+  learnerId    String
+  learner      Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  languageCode String
+  deck         String // "symbols"
+  mode         String // "full" | "smart"
+  total        Int
+  correct      Int
+  createdAt    DateTime @default(now())
+  answers      QuizAnswer[]
+
+  @@index([learnerId, deck, createdAt])
+}
+
+model QuizAnswer {
+  id           String  @id @default(cuid())
+  runId        String
+  run          QuizRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  itemId       String // e.g. "f:ㅅ" - see src/lib/hangulQuiz.ts
+  variantIndex Int
+  given        String
+  correct      Boolean
+
+  @@index([runId])
+}
+
+// Rolling per-letter progress, used by the Smart quiz to skip what's already mastered.
+model ItemStat {
+  learnerId     String
+  learner       Learner   @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  deck          String
+  itemId        String
+  seen          Int       @default(0)
+  correctCount  Int       @default(0)
+  correctStreak Int       @default(0)
+  lastSeenAt    DateTime
+  lastWrongAt   DateTime?
+
+  @@id([learnerId, deck, itemId])
+}

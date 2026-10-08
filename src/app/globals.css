@@ -10,6 +10,10 @@
   --accent: #b8452f;
   --accent-foreground: #fffaf5;
   --accent-soft: #f6e2db;
+  --success: #2f7d4f;
+  --success-soft: #dcefe3;
+  --danger: #b3261e;
+  --danger-soft: #f8e0dd;
   --native-font: var(--font-noto-sc);
 }
 
@@ -24,6 +28,10 @@
     --accent: #e07a5f;
     --accent-foreground: #1a1108;
     --accent-soft: #3a2620;
+    --success: #5fc08a;
+    --success-soft: #1c3226;
+    --danger: #f0847b;
+    --danger-soft: #3b1f1c;
   }
 }
 
@@ -95,6 +103,10 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --font-sans: var(--font-inter);
   --font-native: var(--native-font);
 }

@@ -5,9 +5,14 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clsx } from "clsx";
 import { LANGUAGES, LANGUAGE_CODES, DEFAULT_LANGUAGE, isLanguageCode } from "@/lib/languages";
 
+// Flashcards live under the Quiz hub, so the Quiz tab stays highlighted on /flashcards too.
 const links = [
-  { href: "/", label: "List" },
-  { href: "/flashcards", label: "Flashcards" },
+  { href: "/", label: "List", match: (pathname: string) => pathname === "/" },
+  {
+    href: "/quiz",
+    label: "Quiz",
+    match: (pathname: string) => pathname.startsWith("/quiz") || pathname.startsWith("/flashcards"),
+  },
 ];
 
 export function NavBar() {
@@ -65,7 +70,7 @@ export function NavBar() {
 
         <nav className="flex items-center gap-1 shrink-0">
           {links.map((link) => {
-            const active = pathname === link.href;
+            const active = link.match(pathname);
             return (
               <Link
                 key={link.href}

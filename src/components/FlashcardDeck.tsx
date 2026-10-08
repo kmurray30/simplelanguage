@@ -1,8 +1,9 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AudioButton } from "./AudioButton";
+import { Emphasis } from "./Emphasis";
 import { LANGUAGES } from "@/lib/languages";
 import { HANGUL_SYLLABLES, HANGUL_SYMBOLS } from "@/lib/hangul";
 import { DECK_LABELS, availableDecks, type DeckType } from "@/lib/decks";
@@ -82,20 +83,6 @@ function syllableCards(languageCode: LanguageCode): FlashCard[] {
     audioSrc: ttsSrc(languageCode, s.block),
     audioOn: "en",
   }));
-}
-
-// "**x**" marks the sound an "as in" example is illustrating.
-function renderEmphasis(text: string): ReactNode {
-  const parts = text.split("**");
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <strong key={i} className="font-semibold text-foreground">
-        {part}
-      </strong>
-    ) : (
-      <Fragment key={i}>{part}</Fragment>
-    ),
-  );
 }
 
 const PRIMARY_CLASS: Record<Face["size"], string> = {
@@ -234,7 +221,7 @@ export function FlashcardDeck({
         )}
         {face.secondary && (
           <span className="text-lg text-foreground-muted text-center">
-            {renderEmphasis(face.secondary)}
+            <Emphasis text={face.secondary} />
           </span>
         )}
         {face.tertiary && (
