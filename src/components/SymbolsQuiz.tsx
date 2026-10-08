@@ -187,6 +187,8 @@ export function SymbolsQuiz({
   const [keypadOpen, setKeypadOpen] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [finishedMode, setFinishedMode] = useState<QuizMode>("full");
+  // Index of an already-answered card being looked at again (read-only), or null for the live question.
+  const [reviewIndex, setReviewIndex] = useState<number | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
@@ -194,9 +196,10 @@ export function SymbolsQuiz({
   // Move focus to whatever the user does next: the answer box (only where a physical keyboard is
   // likely, so a phone's keyboard doesn't cover the keypad) or the Next button after answering.
   useEffect(() => {
-    if (phase === "revealed") nextRef.current?.focus();
+    if (reviewIndex !== null) nextRef.current?.focus();
+    else if (phase === "revealed") nextRef.current?.focus();
     else if (phase === "asking" && window.matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
-  }, [phase, index]);
+  }, [phase, index, reviewIndex]);
 
   const pick = questions[index];
   const item = pick ? itemById(pick.itemId) : undefined;
@@ -223,6 +226,7 @@ export function SymbolsQuiz({
     setInvalid(null);
     setRevealed(null);
     setAnswers([]);
+    setReviewIndex(null);
     setSaveState("idle");
     setPhase("asking");
   }
@@ -253,6 +257,89 @@ export function SymbolsQuiz({
       void finish();
     }
   }
+
+  // Looking back is strictly read-only: it re-derives the verdict from what was already submitted.
+  function reviewEntry(i: number): Revealed | null {
+    const a = answers[i];
+    const q = questions[i];
+    const qItem = q ? itemById(q.itemId) : undefined;
+    if (!a || !qItem) return null;
+    const grade = gradeAnswer(qItem, a.variantIndex, a.given);
+    return {
+      correct: a.correct,
+      given: grade.status === "wrong" ? grade.given : a.given,
+      message: grade.status === "wrong" ? grade.message : null,
+    };
+  }
+
+  function reviewBack() {
+    const target = (reviewIndex ?? index) - 1;
+    if (target >= 0) setReviewIndex(target);
+  }
+
+  function reviewForward() {
+    if (reviewIndex === null) return;
+    // Stepping past the last answered card lands back on the live question.
+    setReviewIndex(reviewIndex + 1 >= index ? null : reviewIndex + 1);
+  }
+
+  // The verdict side of a card: used for the live flip and for read-only review.
+  function verdictContent(q: Pick, entry: Revealed) {
+    const qItem = itemById(q.itemId);
+    const qVariant = qItem?.variants[q.variantIndex];
+    if (!qItem || !qVariant) return null;
+    const qFull = qVariant.ko ? fullWord(qVariant.ko) : null;
+    return (
+      <>
+        <div className="flex items-center gap-2" aria-live="polite">
+          <span
+            className={clsx(
+              "w-9 h-9 rounded-full flex items-center justify-center text-xl font-semibold text-white",
+              entry.correct ? "bg-success" : "bg-danger",
+            )}
+            aria-hidden
+          >
+            {entry.correct ? "✓" : "✗"}
+          </span>
+          <span className="text-lg font-medium">{entry.correct ? "Correct" : "Not quite"}</span>
+        </div>
+
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="native-text text-7xl leading-tight">{qItem.answer}</span>
+          <span className="native-text text-sm text-foreground-muted">{SYMBOL_NAME.get(qItem.answer)}</span>
+        </div>
+
+        {!entry.correct && (
+          <p className="text-sm">
+            You wrote <span className="native-text text-xl align-middle">{entry.given || "nothing"}</span>
+          </p>
+        )}
+
+        <p className="text-sm text-foreground-muted">
+          <Emphasis text={qVariant.text} highlight /> · {variantCode(qItem, q.variantIndex)}
+          {qFull && (
+            <>
+              {" "}
+              · in <span className="native-text text-foreground">{qFull}</span> ({qVariant.ko?.gloss})
+            </>
+          )}
+        </p>
+
+        {entry.message && (
+          <p className="text-sm rounded-xl border border-danger/30 bg-surface/60 px-3 py-2 text-left">{entry.message}</p>
+        )}
+
+        <p className="text-sm text-foreground-muted text-left">
+          <span className="font-medium text-foreground">{POSITION_LABEL[qItem.position]}: </span>
+          {qItem.note}
+          {qVariant.note && <> {qVariant.note}</>}
+        </p>
+      </>
+    );
+  }
+
+  const verdictColors = (correct: boolean | undefined) =>
+    correct ? "border-success/50 bg-success-soft" : "border-danger/50 bg-danger-soft";
 
   async function finish() {
     setPhase("results");
@@ -456,9 +543,12 @@ export function SymbolsQuiz({
   // ---- Asking / revealed -----------------------------------------------------------------------
   if (!item || !pick || !variant) return null;
   const blank = variant.ko ? blankedWord(variant.ko) : null;
-  const full = variant.ko ? fullWord(variant.ko) : null;
   const isRevealed = phase === "revealed" && revealed !== null;
   const isLast = index + 1 === questions.length;
+  const reviewing = reviewIndex !== null ? reviewIndex : null;
+  const reviewPick = reviewing !== null ? questions[reviewing] : undefined;
+  const reviewResult = reviewing !== null ? reviewEntry(reviewing) : null;
+  const canGoBack = (reviewIndex ?? index) > 0;
 
   return (
     <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-4">
@@ -469,12 +559,54 @@ export function SymbolsQuiz({
         <div className="flex-1 h-1.5 rounded-full bg-surface-muted overflow-hidden">
           <div className="h-full bg-accent transition-all" style={{ width: `${((index + (isRevealed ? 1 : 0)) / questions.length) * 100}%` }} />
         </div>
+        <button
+          type="button"
+          onClick={reviewBack}
+          disabled={!canGoBack}
+          className="px-2.5 py-1 rounded-full text-xs border border-border hover:bg-surface-muted transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+        >
+          &larr; Previous
+        </button>
         <span className="text-xs text-foreground-muted tabular-nums">
-          {index + 1} / {questions.length}
+          {(reviewing ?? index) + 1} / {questions.length}
         </span>
       </div>
       {quizNote && index === 0 && <p className="text-xs text-foreground-muted">{quizNote}</p>}
 
+      {reviewing !== null && reviewPick && reviewResult ? (
+        <>
+          <p className="text-xs text-foreground-muted text-center">
+            Looking back at an answered card - answers are locked.
+          </p>
+          <div
+            className={clsx(
+              "rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center",
+              verdictColors(reviewResult.correct),
+            )}
+          >
+            {verdictContent(reviewPick, reviewResult)}
+          </div>
+          <div className="flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={reviewBack}
+              disabled={reviewing === 0}
+              className="px-4 py-2 rounded-full text-sm border border-border hover:bg-surface-muted transition-colors disabled:opacity-30"
+            >
+              &larr; Previous
+            </button>
+            <button
+              ref={nextRef}
+              type="button"
+              onClick={reviewForward}
+              className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
+            >
+              {reviewing + 1 >= index ? `Back to question ${index + 1}` : "Next \u2192"}
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
       <div className="[perspective:1200px]">
         <div
           // Only animate the reveal. Resetting for the next question must be instant: the back
@@ -554,64 +686,23 @@ export function SymbolsQuiz({
             style={{ transform: "rotateY(180deg)" }}
             className={clsx(
               "[grid-area:1/1] [backface-visibility:hidden] rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center",
-              revealed?.correct ? "border-success/50 bg-success-soft" : "border-danger/50 bg-danger-soft",
+              verdictColors(revealed?.correct),
             )}
           >
-            <div className="flex items-center gap-2" aria-live="polite">
-              <span
-                className={clsx(
-                  "w-9 h-9 rounded-full flex items-center justify-center text-xl font-semibold text-white",
-                  revealed?.correct ? "bg-success" : "bg-danger",
-                )}
-                aria-hidden
-              >
-                {revealed?.correct ? "✓" : "✗"}
-              </span>
-              <span className="text-lg font-medium">{revealed?.correct ? "Correct" : "Not quite"}</span>
-            </div>
-
-            <div className="flex flex-col items-center gap-0.5">
-              <span className="native-text text-7xl leading-tight">{item.answer}</span>
-              <span className="native-text text-sm text-foreground-muted">{SYMBOL_NAME.get(item.answer)}</span>
-            </div>
-
-            {!revealed?.correct && (
-              <p className="text-sm">
-                You wrote <span className="native-text text-xl align-middle">{revealed?.given || "nothing"}</span>
-              </p>
-            )}
-
-            <p className="text-sm text-foreground-muted">
-              <Emphasis text={variant.text} highlight /> · {variantCode(item, pick.variantIndex)}
-              {full && (
-                <>
-                  {" "}
-                  · in <span className="native-text text-foreground">{full}</span> ({variant.ko?.gloss})
-                </>
-              )}
-            </p>
-
-            {revealed?.message && (
-              <p className="text-sm rounded-xl border border-danger/30 bg-surface/60 px-3 py-2 text-left">{revealed.message}</p>
-            )}
-
-            <p className="text-sm text-foreground-muted text-left">
-              <span className="font-medium text-foreground">{POSITION_LABEL[item.position]}: </span>
-              {item.note}
-              {variant.note && <> {variant.note}</>}
-            </p>
-
+            {revealed && verdictContent(pick, revealed)}
             <button
-              ref={nextRef}
+              ref={reviewing === null ? nextRef : undefined}
               type="button"
               onClick={next}
               className="mt-1 px-5 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
             >
-              {isLast ? "See results" : "Next →"}
+              {isLast ? "See results" : "Next \u2192"}
             </button>
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

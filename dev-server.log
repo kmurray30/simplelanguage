@@ -2,11 +2,8 @@
 - Local:         http://localhost:3100
 - Network:       http://192.0.2.2:3100
 - Environments: .env
-✓ Ready in 2.3s
-✓ Running next.config.ts took 4.3s
+✓ Ready in 369ms
+✓ Running next.config.ts took 34ms
 
-○ Compiling /quiz/symbols ...
- GET /quiz/symbols?lang=ko 200 in 23.1s (next.js: 20.4s, application-code: 2.7s)
- GET /quiz/symbols?lang=ko 200 in 76ms (next.js: 11ms, application-code: 65ms)
- GET /quiz/symbols?lang=ko 200 in 66ms (next.js: 5ms, application-code: 61ms)
+ GET /quiz/symbols?lang=ko 200 in 545ms (next.js: 212ms, application-code: 333ms)
 [?25h
