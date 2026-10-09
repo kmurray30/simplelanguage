@@ -6,7 +6,8 @@ const FINALS_TABLE = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ"
 const INITIALS_TABLE = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
 const VOWELS_TABLE = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"];
 
-export type KoWord = { before?: string; block: string; after?: string };
+// `blank` picks which letter of the block is hidden: its final consonant (default) or its vowel.
+export type KoWord = { before?: string; block: string; after?: string; blank?: "final" | "vowel" };
 
 export function decomposeBlock(block: string): { initial: string; vowel: string; final: string } | null {
   const code = block.codePointAt(0);
@@ -19,11 +20,15 @@ export function decomposeBlock(block: string): { initial: string; vowel: string;
   };
 }
 
-// "책" -> "채＿": the word with the block's final letter removed and a blank in its place.
+// "책" -> "채＿" (final blanked), or "돼" -> "ㄷ＿" (vowel blanked): the word with one letter of the
+// target block hidden.
 export function blankedWord(word: KoWord): string | null {
   const parts = decomposeBlock(word.block);
   if (!parts) return null;
-  const open = composeSyllable(parts.initial as never, parts.vowel as never, "");
+  const open =
+    word.blank === "vowel"
+      ? parts.initial
+      : composeSyllable(parts.initial as never, parts.vowel as never, "");
   return `${word.before ?? ""}${open}＿${word.after ?? ""}`;
 }
 

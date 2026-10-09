@@ -108,12 +108,12 @@ const PAIR_SPECIFIC: Record<string, string> = {
   "ㅙ|ㅞ": "ㅞ is romanized we. ㅙ, ㅚ and ㅞ all sound like \"weh\" today, so the code is what tells them apart: wae is ㅙ, oe is ㅚ, we is ㅞ.",
   "ㅚ|ㅙ": "ㅙ is romanized wae. ㅙ, ㅚ and ㅞ all sound like \"weh\" today, so the code is what tells them apart: wae is ㅙ, oe is ㅚ, we is ㅞ.",
   "ㅚ|ㅞ": "ㅞ is romanized we. ㅙ, ㅚ and ㅞ all sound like \"weh\" today, so the code is what tells them apart: wae is ㅙ, oe is ㅚ, we is ㅞ.",
-  "ㅞ|ㅙ": "ㅙ is romanized wae. ㅙ, ㅚ and ㅞ all sound like \"weh\" today, so the code is what tells them apart: wae is ㅙ, oe is ㅚ, we is ㅞ.",
-  "ㅞ|ㅚ": "ㅚ is romanized oe. ㅙ, ㅚ and ㅞ all sound like \"weh\" today, so the code is what tells them apart: wae is ㅙ, oe is ㅚ, we is ㅞ.",
+  "ㅞ|ㅙ": "ㅙ is romanized wae. ㅙ, ㅚ and ㅞ all sound like \"weh\" today, so the code is what tells them apart: wae is ㅙ, oe is ㅚ, we is ㅞ. Korean spells English \"we\" with ㅞ (웹 web, 웨스트 west, 웰 well).",
+  "ㅞ|ㅚ": "ㅚ is romanized oe. ㅙ, ㅚ and ㅞ all sound like \"weh\" today, so the code is what tells them apart: wae is ㅙ, oe is ㅚ, we is ㅞ. Korean spells English \"we\" with ㅞ (웹 web, 웨스트 west, 웰 well).",
   "ㅟ|ㅢ": "ㅢ starts with ㅡ (flat lips, eu) and slides into ㅣ. ㅟ starts with ㅜ (rounded lips, oo) and slides into ㅣ: \"wee\".",
   "ㅢ|ㅟ": "ㅟ starts with ㅜ (rounded lips) - \"wee\". ㅢ starts with ㅡ (flat lips) and slides into ㅣ: \"eu-ee\".",
-  "ㅘ|ㅝ": "ㅝ is ㅜ + ㅓ: \"wuh\". ㅘ is ㅗ + ㅏ: \"wah\" (wand).",
-  "ㅝ|ㅘ": "ㅘ is ㅗ + ㅏ: \"wah\". ㅝ is ㅜ + ㅓ: \"wuh\" (won).",
+  "ㅘ|ㅝ": "ㅝ is ㅜ + ㅓ: \"wuh\" (won, water). ㅘ is ㅗ + ㅏ: \"wah\" (wand, waffle).",
+  "ㅝ|ㅘ": "ㅘ is ㅗ + ㅏ: \"wah\" (wand, waffle). ㅝ is ㅜ + ㅓ: \"wuh\" (won) - and Korean spells English \"water\" and \"watch\" with ㅝ (워터, 워치).",
   "ㅑ|ㅕ": "ㅕ is ㅓ with a y-glide: \"yuh\" (yuck). ㅑ is ㅏ with a y-glide: \"yah\" (yard).",
   "ㅕ|ㅑ": "ㅑ is ㅏ with a y-glide: \"yah\" (yard). ㅕ is ㅓ with a y-glide: \"yuh\" (yuck).",
   "ㅛ|ㅠ": "ㅠ is ㅜ with a y-glide: \"yoo\" (you). ㅛ is ㅗ with a y-glide: \"yoh\" (yoga).",
@@ -155,6 +155,15 @@ function glideNote(answer: string, given: string): string | null {
 // --- Entry point -------------------------------------------------------------------------------
 
 export function explainWrong(item: QuizItem, variant: QuizVariant, given: string): string {
+  const message = baseExplanation(item, variant, given);
+  // Merged vowels (ㅙ ㅚ ㅞ) are told apart by the Korean word, so name it.
+  if (item.position === "vowel" && variant.ko) {
+    return `${message} This word (${fullWord(variant.ko)}, ${variant.ko.gloss}) is spelled with ${item.answer}.`;
+  }
+  return message;
+}
+
+function baseExplanation(item: QuizItem, variant: QuizVariant, given: string): string {
   const specific = ITEM_SPECIFIC[`${item.id}|${given}`];
   if (specific) return specific;
 

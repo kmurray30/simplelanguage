@@ -24,9 +24,10 @@ export type QuizVariant = {
   prompt?: string;
   // Extra explanation shown on the reveal side for this variant only.
   note?: string;
-  // Final-position letters that share a sound (ㄷㅅㅈㅊㅌㅆㅎ all end in t) need a Korean word to pin
-  // down which one is meant: `before + block + after`, with the block's final letter blanked.
-  ko?: { before?: string; block: string; after?: string; gloss: string };
+  // Letters that share a sound (the finals ㄷㅅㅈㅊㅌㅆㅎ all end in t; ㅙ ㅚ ㅞ all say "weh") need a
+  // Korean word to pin down which one is meant: `before + block + after`, with one letter of the
+  // block blanked (its final by default, or its vowel).
+  ko?: { before?: string; block: string; after?: string; blank?: "final" | "vowel"; gloss: string };
 };
 
 export type QuizItem = {
@@ -85,6 +86,11 @@ const ko = (block: string, gloss: string, before = "", after = ""): { ko: NonNul
   ko: { before, block, after, gloss },
 });
 
+// Same, but the block's vowel is the blank.
+const vko = (block: string, gloss: string, before = "", after = ""): { ko: NonNullable<QuizVariant["ko"]> } => ({
+  ko: { before, block, after, blank: "vowel", gloss },
+});
+
 // --- The bank ----------------------------------------------------------------------------------
 
 const INITIALS: QuizItem[] = [
@@ -120,7 +126,7 @@ const INITIALS: QuizItem[] = [
     ["**sh**eep", { code: "s", note: "Before ㅣ the ㅅ sounds like sh: 시 is pronounced \"shee\", though Revised Romanization writes it si." }],
   ]),
   initial("ㅆ", "ss", "The tense s: a tighter, sharper hiss than ㅅ, with a tight throat. English has no exact match - hold the hiss of \"hiss\". Before ㅣ it becomes a tense sh (씨).", [
-    ["hi**ss**ing"], ["mi**ss**ing"], ["a snake's **ss**s"],
+    ["hi**ss**ing"], ["mi**ss**ing"], ["ki**ss**ing"],
   ]),
   initial("ㅇ", "(silent)", "Every Korean syllable is written with a consonant letter first. When the syllable starts with a vowel sound, the silent placeholder ㅇ goes there and makes no sound at all (아 = \"ah\"). At the END of a syllable the same letter is ng.", [
     ["ah", { prompt: "Every Korean syllable begins with a consonant letter. Which silent placeholder goes first when the syllable starts with a vowel sound, like \"ah\"?" }],
@@ -199,7 +205,7 @@ const FINALS: QuizItem[] = [
   ]),
   final("ㅈ", "t", NEUTRAL_T, [
     ["ca**t**", ko("낮", "daytime")],
-    ["hea**t**", ko("젖", "milk")],
+    ["hea**t**", ko("젖", "breast milk")],
     ["goo**d**", ko("맞", "to be correct", "", "다")],
   ]),
   final("ㅊ", "t", NEUTRAL_T, [
@@ -242,7 +248,7 @@ const FINALS: QuizItem[] = [
 
 const VOWEL_ITEMS: QuizItem[] = [
   vowel("ㅏ", "a", "ㅏ is an open \"ah\", like the a in \"father\".", [["f**a**ther"], ["sp**a**"], ["p**a**lm"]]),
-  vowel("ㅑ", "ya", "ㅑ is ㅏ with a y-glide in front: \"yah\".", [["**ya**rd"], ["**ya**wn"], ["**Ya**hoo"]]),
+  vowel("ㅑ", "ya", "ㅑ is ㅏ with a y-glide in front: \"yah\".", [["**ya**rd"], ["**Ya**hoo"]]),
   vowel("ㅓ", "eo", "ㅓ is \"uh\", like the u in \"cup\": mouth open, lips unrounded. It is not \"oh\" and not the rounded \"aw\" of \"saw\" - that is why it is romanized eo.", [["c**u**p"], ["s**u**n"], ["b**u**t"]]),
   vowel("ㅕ", "yeo", "ㅕ is ㅓ with a y-glide in front: \"yuh\".", [["**yu**ck"], ["**yu**mmy"]]),
   vowel("ㅗ", "o", "ㅗ is a pure \"oh\" with the lips rounded and held - no \"w\" tail on the end like the English \"go\" has.", [["g**o**"], ["b**o**ne"], ["**o**kay"]]),
@@ -270,25 +276,42 @@ const VOWEL_ITEMS: QuizItem[] = [
     "ㅖ is \"yeh\". After a consonant it loses the y-glide and sounds like ㅔ (계 = geh, 혜 = heh). It sounds the same as ㅒ in modern speech.",
     [["**ye**s"], ["**ye**ll"], ["**ye**t"]],
   ),
-  vowel("ㅘ", "wa", "ㅘ is ㅗ + ㅏ blended quickly: \"wah\".", [["**wa**nd"], ["**wa**tch"]]),
+  vowel("ㅘ", "wa", "ㅘ is ㅗ + ㅏ blended quickly: \"wah\". Type it as ㅗ then ㅏ.", [
+    ["**wa**ffle", { note: "Korean spells English \"waffle\" 와플." }],
+    ["**wa**sabi", { note: "Korean spells it 와사비." }],
+    ["**wa**nd", { note: "Korean spells English \"wand\" 완드." }],
+  ]),
   vowel(
     "ㅙ",
     "wae",
-    "ㅙ is romanized wae. In modern speech ㅙ, ㅚ and ㅞ all sound the same (\"weh\"), so the romanized code is what tells them apart.",
-    [["**we**t"], ["**we**b"]],
+    "ㅙ is romanized wae (ㅗ + ㅐ). In modern speech ㅙ, ㅚ and ㅞ all sound the same (\"weh\"), so English can't tell you which one a word uses - the Korean word does. English \"we\" itself is spelled with ㅞ.",
+    [
+      ["**weh**", vko("왜", "why")],
+      ["**weh**", vko("돼", "pig", "", "지")],
+      ["**weh**", vko("꽤", "quite, fairly")],
+    ],
   ),
   vowel(
     "ㅚ",
     "oe",
-    "ㅚ is romanized oe. Historically a rounded \"ö\", it now sounds like ㅙ and ㅞ (\"weh\"), so the romanized code is what tells them apart.",
-    [["**we**b"], ["**we**st"]],
+    "ㅚ is romanized oe (ㅗ + ㅣ). Historically a rounded \"ö\", it now sounds like ㅙ and ㅞ (\"weh\"), so English can't tell you which one a word uses - the Korean word does. English \"we\" itself is spelled with ㅞ.",
+    [
+      ["**weh**", vko("외", "foreign country", "", "국")],
+      ["**weh**", vko("회", "company", "", "사")],
+      ["**weh**", vko("최", "the best", "", "고")],
+    ],
   ),
-  vowel("ㅝ", "wo", "ㅝ is ㅜ + ㅓ blended quickly: \"wuh\".", [["**wo**n"], ["**wo**nder"]]),
+  vowel("ㅝ", "wo", "ㅝ is ㅜ + ㅓ blended quickly: \"wuh\". Type it as ㅜ then ㅓ.", [
+    ["**wo**n", { note: "Korean spells the currency \"won\" 원." }],
+    ["**wo**nder", { note: "Korean spells English \"wonder\" 원더." }],
+    ["**wa**ter", { note: "Korean spells English \"water\" 워터, with ㅝ - not ㅘ." }],
+    ["**wa**tch", { note: "Korean spells English \"watch\" 워치, with ㅝ - not ㅘ." }],
+  ]),
   vowel(
     "ㅞ",
     "we",
-    "ㅞ is romanized we. In modern speech ㅞ, ㅙ and ㅚ all sound the same (\"weh\"), so the romanized code is what tells them apart.",
-    [["**we**st"], ["**we**ll"]],
+    "ㅞ is romanized we (ㅜ + ㅔ). In modern speech ㅞ, ㅙ and ㅚ all sound the same (\"weh\"). English \"we\" is spelled with ㅞ in Korean: 웹 (web), 웨스트 (west), 웰 (well).",
+    [["**we**t"], ["**we**b"], ["**we**st"], ["**we**ll"]],
   ),
   vowel("ㅟ", "wi", "ㅟ is ㅜ + ㅣ blended quickly: \"wee\".", [["**wee**k"], ["**wee**p"]]),
   vowel(
@@ -329,6 +352,16 @@ const CONJOINING_TO_COMPAT = new Map<string, string>(
   [...COMPAT_JAMO].map((jamo) => [jamo.normalize("NFKD"), jamo]),
 );
 
+const VOWEL_JAMO = new Set(
+  HANGUL_SYMBOLS.filter((s) => s.kind === "Vowel" || s.kind === "Compound vowel").map((s) => s.jamo),
+);
+
+// Keystroke pairs that make one letter.
+const FUSED_LETTERS = new Map<string, string>([
+  ["ㅗㅏ", "ㅘ"], ["ㅗㅐ", "ㅙ"], ["ㅗㅣ", "ㅚ"], ["ㅜㅓ", "ㅝ"], ["ㅜㅔ", "ㅞ"], ["ㅜㅣ", "ㅟ"], ["ㅡㅣ", "ㅢ"],
+  ["ㄱㄱ", "ㄲ"], ["ㄷㄷ", "ㄸ"], ["ㅂㅂ", "ㅃ"], ["ㅅㅅ", "ㅆ"], ["ㅈㅈ", "ㅉ"],
+]);
+
 export type Grade =
   | { status: "correct" }
   | { status: "wrong"; given: string; message: string }
@@ -339,8 +372,14 @@ function normalizeGiven(input: string): { jamo: string } | { error: string } {
   if (!text) return { error: "Type the Hangul letter first - or tap one on the keypad." };
   const chars = [...text];
   if (chars.length > 1) {
-    if (chars.every((c) => c === chars[0]) && COMPAT_JAMO.has(chars[0])) {
-      return { error: `That's two ${chars[0]}s in a row. The doubled letters are single letters of their own (ㄲ ㄸ ㅃ ㅆ ㅉ) - type just one letter.` };
+    // Some keyboards/IMEs don't fuse a lone vowel pair or a doubled consonant into one letter, so
+    // accept the keystrokes that make up a compound letter: ㅗ ㅏ -> ㅘ, ㅅ ㅅ -> ㅆ.
+    const fused = chars.length === 2 ? FUSED_LETTERS.get(chars.join("")) : undefined;
+    if (fused) return { jamo: fused };
+    if (chars.length === 2 && chars.every((c) => VOWEL_JAMO.has(c))) {
+      return {
+        error: `${chars.join(" + ")} doesn't combine into a Hangul vowel. The "wa" sound is ㅘ (ㅗ + ㅏ), "wuh" is ㅝ (ㅜ + ㅓ), "weh" is ㅞ (ㅜ + ㅔ). The keypad has every vowel as one key.`,
+      };
     }
     return { error: "Type just one letter - not a whole syllable or word." };
   }
