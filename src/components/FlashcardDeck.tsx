@@ -6,6 +6,7 @@ import { AudioButton } from "./AudioButton";
 import { Emphasis } from "./Emphasis";
 import { LANGUAGES } from "@/lib/languages";
 import { HANGUL_SYLLABLES, HANGUL_SYMBOLS } from "@/lib/hangul";
+import { CUES, KANA, KANA_AUDIO_TEXTS, kanaNote, type KanaScript } from "@/lib/kana";
 import { DECK_LABELS, availableDecks, type DeckType } from "@/lib/decks";
 import { clsx } from "clsx";
 import type { Word, LanguageCode } from "@/types";
@@ -85,11 +86,44 @@ function syllableCards(languageCode: LanguageCode): FlashCard[] {
   }));
 }
 
+function kanaCards(script: KanaScript, languageCode: LanguageCode): FlashCard[] {
+  return KANA.flatMap((entry) => {
+    const char = script === "hiragana" ? entry.hira : entry.kata;
+    if (!char) return [];
+    const other = script === "hiragana" ? entry.kata : entry.hira;
+    return [
+      {
+        id: `${script}:${char}`,
+        native: { primary: char, size: "huge" as const },
+        english: {
+          label: entry.group,
+          primary: entry.romaji,
+          size: "large" as const,
+          // The same sound in the other script - a different letter, so it doesn't give this card away.
+          caption: other && entry.group !== "Special" ? `${script === "hiragana" ? "katakana" : "hiragana"} ${other}` : undefined,
+          secondary: CUES[entry.romaji]?.[0],
+          note: kanaNote(entry, script),
+        },
+        audioSrc: KANA_AUDIO_TEXTS.has(char) ? ttsSrc(languageCode, char) : undefined,
+        audioOn: "en" as const,
+      },
+    ];
+  });
+}
+
 const PRIMARY_CLASS: Record<Face["size"], string> = {
   huge: "native-text text-8xl",
   native: "native-text text-6xl",
   large: "text-4xl font-medium",
   normal: "text-2xl font-medium",
+};
+
+const REFERENCE_FRONT_LABEL: Record<DeckType, string> = {
+  words: "Word",
+  symbols: "Symbol",
+  syllables: "Syllable",
+  hiragana: "Hiragana",
+  katakana: "Katakana",
 };
 
 // Words flip between English and the native script; reference decks start on the bare symbol.
@@ -117,6 +151,7 @@ export function FlashcardDeck({
   const cards = useMemo<FlashCard[]>(() => {
     if (deck === "symbols") return symbolCards(languageCode);
     if (deck === "syllables") return syllableCards(languageCode);
+    if (deck === "hiragana" || deck === "katakana") return kanaCards(deck, languageCode);
     return wordCards(words);
   }, [deck, words, languageCode]);
 
@@ -195,7 +230,7 @@ export function FlashcardDeck({
           { side: "native", label: `${lang.nativeName} first` },
         ]
       : [
-          { side: "native", label: deck === "symbols" ? "Symbol first" : "Syllable first" },
+          { side: "native", label: `${REFERENCE_FRONT_LABEL[deck]} first` },
           { side: "en", label: "Details first" },
         ];
 

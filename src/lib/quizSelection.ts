@@ -1,7 +1,8 @@
 // Picks which questions a quiz asks. Pure functions (the clock and RNG are passed in) so the
 // Smart-quiz rules can be checked without a browser or database.
 
-import type { QuizItem } from "./hangulQuiz";
+// Anything with an id and a list of question variants can be quizzed.
+export type Pickable = { id: string; variants: readonly unknown[] };
 
 export type QuizMode = "full" | "smart";
 
@@ -45,7 +46,7 @@ function shuffle<T>(list: readonly T[], rand: () => number): T[] {
   return out;
 }
 
-function toPick(item: QuizItem, rand: () => number): Pick {
+function toPick(item: Pickable, rand: () => number): Pick {
   return { itemId: item.id, variantIndex: Math.floor(rand() * item.variants.length) };
 }
 
@@ -64,7 +65,7 @@ export function pickQuestions({
   rand = Math.random,
 }: {
   mode: QuizMode;
-  items: readonly QuizItem[];
+  items: readonly Pickable[];
   stats: readonly ItemStatDTO[];
   count: number; // Infinity = every item
   now?: number;
@@ -75,10 +76,10 @@ export function pickQuestions({
   }
 
   const statById = new Map(stats.map((s) => [s.itemId, s]));
-  const fresh: QuizItem[] = [];
-  const struggling: { item: QuizItem; stat: ItemStatDTO }[] = [];
-  const dueReview: { item: QuizItem; stat: ItemStatDTO }[] = [];
-  const mastered: { item: QuizItem; stat: ItemStatDTO }[] = [];
+  const fresh: Pickable[] = [];
+  const struggling: { item: Pickable; stat: ItemStatDTO }[] = [];
+  const dueReview: { item: Pickable; stat: ItemStatDTO }[] = [];
+  const mastered: { item: Pickable; stat: ItemStatDTO }[] = [];
 
   for (const item of items) {
     const stat = statById.get(item.id);
@@ -101,9 +102,9 @@ export function pickQuestions({
   dueReview.sort(byOldestSeen);
   mastered.sort(byOldestSeen);
 
-  const chosen: QuizItem[] = [];
+  const chosen: Pickable[] = [];
   const summary = { fresh: 0, struggling: 0, review: 0, toppedUp: 0 };
-  const take = (list: QuizItem[], bucket: keyof typeof summary) => {
+  const take = (list: Pickable[], bucket: keyof typeof summary) => {
     for (const item of list) {
       if (chosen.length >= count) return;
       chosen.push(item);
@@ -122,7 +123,7 @@ export function pickQuestions({
 }
 
 // How many letters a Smart quiz would skip right now (mastered and seen recently).
-export function countSkippable(items: readonly QuizItem[], stats: readonly ItemStatDTO[], now = Date.now()): number {
+export function countSkippable(items: readonly Pickable[], stats: readonly ItemStatDTO[], now = Date.now()): number {
   const statById = new Map(stats.map((s) => [s.itemId, s]));
   return items.filter((item) => {
     const stat = statById.get(item.id);

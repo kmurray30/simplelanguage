@@ -4,19 +4,10 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { clsx } from "clsx";
 import { Emphasis } from "./Emphasis";
-import { JamoKeypad } from "./JamoKeypad";
-import { HANGUL_SYMBOLS } from "@/lib/hangul";
-import {
-  DEFAULT_PROMPT,
-  POSITION_LABEL,
-  QUIZ_ITEMS,
-  blankedWord,
-  fullWord,
-  gradeAnswer,
-  itemById,
-  variantCode,
-  type QuizPosition,
-} from "@/lib/hangulQuiz";
+import { QuizKeypad } from "./QuizKeypad";
+import { getQuiz } from "@/lib/quizzes";
+import type { QuizType } from "@/lib/decks";
+import type { QuizDefinition } from "@/lib/quizTypes";
 import {
   countSkippable,
   isMastered,
@@ -36,15 +27,13 @@ type Revealed = { correct: boolean; given: string; message: string | null };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
-const LENGTHS: { label: string; count: number }[] = [
-  { label: "10", count: 10 },
-  { label: "20", count: 20 },
-  { label: `All ${QUIZ_ITEMS.length}`, count: Infinity },
-];
-
-const SYMBOL_NAME = new Map(HANGUL_SYMBOLS.map((s) => [s.jamo, s.name]));
-
-const POSITION_ORDER: QuizPosition[] = ["initial", "medial", "final", "vowel"];
+function lengthOptions(total: number): { label: string; count: number }[] {
+  return [
+    { label: "10", count: 10 },
+    { label: "20", count: 20 },
+    { label: `All ${total}`, count: Infinity },
+  ];
+}
 
 function PillToggle<T extends string | number>({
   options,
@@ -87,25 +76,25 @@ const STATUS_STYLE: Record<ReturnType<typeof statusOf>, string> = {
   mastered: "border-success/40 bg-success-soft text-foreground",
 };
 
-function MasteryGrid({ stats }: { stats: ItemStatDTO[] }) {
+function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: ItemStatDTO[] }) {
   const byId = new Map(stats.map((s) => [s.itemId, s]));
   return (
     <div className="flex flex-col gap-3">
-      {POSITION_ORDER.map((position) => (
-        <div key={position} className="flex flex-col gap-1.5">
-          <span className="text-[11px] uppercase tracking-wide text-foreground-muted">{POSITION_LABEL[position]}</span>
+      {quiz.groups.map((group) => (
+        <div key={group} className="flex flex-col gap-1.5">
+          <span className="text-[11px] uppercase tracking-wide text-foreground-muted">{group}</span>
           <div className="flex flex-wrap gap-1.5">
-            {QUIZ_ITEMS.filter((item) => item.position === position).map((item) => {
+            {quiz.items.filter((item) => item.group === group).map((item) => {
               const stat = byId.get(item.id);
               const status = statusOf(stat);
               return (
                 <span
                   key={item.id}
-                  title={`${item.answer} · ${POSITION_LABEL[position].toLowerCase()} · ${
+                  title={`${item.answer} · ${group.toLowerCase()} · ${
                     stat ? `${stat.correctCount}/${stat.seen} correct, streak ${stat.correctStreak}` : "not asked yet"
                   }`}
                   className={clsx(
-                    "native-text w-9 h-9 rounded-lg border flex items-center justify-center text-lg",
+                    "native-text min-w-9 h-9 px-1 rounded-lg border flex items-center justify-center text-lg",
                     STATUS_STYLE[status],
                   )}
                 >
@@ -162,15 +151,20 @@ function ScoreHistory({ runs }: { runs: RunDTO[] }) {
   );
 }
 
-export function SymbolsQuiz({
+export function LetterQuiz({
+  deck,
   languageCode,
   initialStats,
   initialRuns,
 }: {
+  deck: QuizType;
   languageCode: LanguageCode;
   initialStats: ItemStatDTO[];
   initialRuns: RunDTO[];
 }) {
+  // The page only renders this for a deck that has a quiz, so this lookup always succeeds.
+  const quiz = getQuiz(deck)!;
+  const LENGTHS = lengthOptions(quiz.items.length);
   const [phase, setPhase] = useState<Phase>("setup");
   const [mode, setMode] = useState<QuizMode>("full");
   const [count, setCount] = useState(20);
@@ -202,11 +196,11 @@ export function SymbolsQuiz({
   }, [phase, index, reviewIndex]);
 
   const pick = questions[index];
-  const item = pick ? itemById(pick.itemId) : undefined;
+  const item = pick ? quiz.itemById(pick.itemId) : undefined;
   const variant = item && pick ? item.variants[pick.variantIndex] : undefined;
 
   function start(nextMode: QuizMode) {
-    const selection = pickQuestions({ mode: nextMode, items: QUIZ_ITEMS, stats, count });
+    const selection = pickQuestions({ mode: nextMode, items: quiz.items, stats, count });
     setQuestions(selection.picks);
     const summary = selection.summary;
     setQuizNote(
@@ -234,7 +228,7 @@ export function SymbolsQuiz({
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!item || !pick || phase !== "asking") return;
-    const grade = gradeAnswer(item, pick.variantIndex, input);
+    const grade = quiz.grade(item, pick.variantIndex, input);
     if (grade.status === "invalid") {
       setInvalid(grade.message);
       return;
@@ -262,9 +256,9 @@ export function SymbolsQuiz({
   function reviewEntry(i: number): Revealed | null {
     const a = answers[i];
     const q = questions[i];
-    const qItem = q ? itemById(q.itemId) : undefined;
+    const qItem = q ? quiz.itemById(q.itemId) : undefined;
     if (!a || !qItem) return null;
-    const grade = gradeAnswer(qItem, a.variantIndex, a.given);
+    const grade = quiz.grade(qItem, a.variantIndex, a.given);
     return {
       correct: a.correct,
       given: grade.status === "wrong" ? grade.given : a.given,
@@ -285,10 +279,10 @@ export function SymbolsQuiz({
 
   // The verdict side of a card: used for the live flip and for read-only review.
   function verdictContent(q: Pick, entry: Revealed) {
-    const qItem = itemById(q.itemId);
+    const qItem = quiz.itemById(q.itemId);
     const qVariant = qItem?.variants[q.variantIndex];
     if (!qItem || !qVariant) return null;
-    const qFull = qVariant.ko ? fullWord(qVariant.ko) : null;
+    const qContext = qVariant.context;
     return (
       <>
         <div className="flex items-center gap-2" aria-live="polite">
@@ -306,7 +300,7 @@ export function SymbolsQuiz({
 
         <div className="flex flex-col items-center gap-0.5">
           <span className="native-text text-7xl leading-tight">{qItem.answer}</span>
-          <span className="native-text text-sm text-foreground-muted">{SYMBOL_NAME.get(qItem.answer)}</span>
+          <span className="native-text text-sm text-foreground-muted">{quiz.answerLabel(qItem)}</span>
         </div>
 
         {!entry.correct && (
@@ -316,11 +310,11 @@ export function SymbolsQuiz({
         )}
 
         <p className="text-sm text-foreground-muted">
-          <Emphasis text={qVariant.text} highlight /> · {variantCode(qItem, q.variantIndex)}
-          {qFull && (
+          <Emphasis text={qVariant.text} highlight /> · {quiz.variantCode(qItem, q.variantIndex)}
+          {qContext && (
             <>
               {" "}
-              · in <span className="native-text text-foreground">{qFull}</span> ({qVariant.ko?.gloss})
+              · in <span className="native-text text-foreground">{qContext.full}</span> ({qContext.gloss})
             </>
           )}
         </p>
@@ -330,7 +324,7 @@ export function SymbolsQuiz({
         )}
 
         <p className="text-sm text-foreground-muted text-left">
-          <span className="font-medium text-foreground">{POSITION_LABEL[qItem.position]}: </span>
+          <span className="font-medium text-foreground">{qItem.group}: </span>
           {qItem.note}
           {qVariant.note && <> {qVariant.note}</>}
         </p>
@@ -354,7 +348,7 @@ export function SymbolsQuiz({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deck: "symbols",
+          deck: quiz.deck,
           mode: savedMode,
           answers: toSave.map(({ itemId, variantIndex, given }) => ({ itemId, variantIndex, given })),
         }),
@@ -373,11 +367,11 @@ export function SymbolsQuiz({
 
   // ---- Setup -----------------------------------------------------------------------------------
   if (phase === "setup") {
-    const skippable = countSkippable(QUIZ_ITEMS, stats);
+    const skippable = countSkippable(quiz.items, stats);
     return (
       <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-6">
         <div className="flex items-baseline justify-between gap-3">
-          <h1 className="text-lg font-medium">Symbols quiz</h1>
+          <h1 className="text-lg font-medium">{quiz.title}</h1>
           <Link href={backHref} className="text-sm text-foreground-muted hover:text-foreground">
             &larr; All practice
           </Link>
@@ -385,9 +379,7 @@ export function SymbolsQuiz({
 
         <section className="rounded-2xl border border-border bg-surface p-4 flex flex-col gap-4">
           <p className="text-sm text-foreground-muted">
-            You&apos;ll see an English word with the sound in bold, plus its phonetic code. Write the Hangul
-            letter for that sound - the same letter can sound different at the start and the end of a syllable,
-            so each position gets its own question.
+            {quiz.intro}
           </p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <div className="flex flex-col gap-1.5">
@@ -433,7 +425,7 @@ export function SymbolsQuiz({
 
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium">Letter by letter</h2>
-          <MasteryGrid stats={stats} />
+          <MasteryGrid quiz={quiz} stats={stats} />
         </section>
       </div>
     );
@@ -509,7 +501,7 @@ export function SymbolsQuiz({
             <h2 className="text-sm font-medium">To review ({missed.length})</h2>
             <ul className="flex flex-col gap-2">
               {missed.map((a, i) => {
-                const missedItem = itemById(a.itemId);
+                const missedItem = quiz.itemById(a.itemId);
                 if (!missedItem) return null;
                 const v = missedItem.variants[a.variantIndex];
                 return (
@@ -518,10 +510,10 @@ export function SymbolsQuiz({
                     <div className="flex-1 min-w-0 text-sm">
                       <div>
                         <Emphasis text={v.text} highlight />{" "}
-                        <span className="text-foreground-muted">· {variantCode(missedItem, a.variantIndex)}</span>
+                        <span className="text-foreground-muted">· {quiz.variantCode(missedItem, a.variantIndex)}</span>
                       </div>
                       <div className="text-xs text-foreground-muted">
-                        {POSITION_LABEL[missedItem.position]} · you wrote{" "}
+                        {missedItem.group} · you wrote{" "}
                         <span className="native-text">{a.given || "nothing"}</span>
                       </div>
                     </div>
@@ -542,7 +534,7 @@ export function SymbolsQuiz({
 
   // ---- Asking / revealed -----------------------------------------------------------------------
   if (!item || !pick || !variant) return null;
-  const blank = variant.ko ? blankedWord(variant.ko) : null;
+  const context = variant.context;
   const isRevealed = phase === "revealed" && revealed !== null;
   const isLast = index + 1 === questions.length;
   const reviewing = reviewIndex !== null ? reviewIndex : null;
@@ -620,16 +612,16 @@ export function SymbolsQuiz({
             inert={isRevealed}
             className="[grid-area:1/1] [backface-visibility:hidden] rounded-3xl border border-border bg-surface shadow-sm p-6 flex flex-col items-center gap-4"
           >
-            <p className="text-sm text-foreground-muted text-center">{variant.prompt ?? DEFAULT_PROMPT}</p>
+            <p className="text-sm text-foreground-muted text-center">{variant.prompt ?? quiz.defaultPrompt}</p>
             <div className="flex flex-col items-center gap-2 py-2">
               <span className="text-4xl font-normal text-foreground-muted text-center">
                 <Emphasis text={variant.text} highlight />
               </span>
-              <span className="text-lg font-mono px-3 py-0.5 rounded-full bg-accent-soft">{variantCode(item, pick.variantIndex)}</span>
-              {blank && (
+              <span className="text-lg font-mono px-3 py-0.5 rounded-full bg-accent-soft">{quiz.variantCode(item, pick.variantIndex)}</span>
+              {context && (
                 <span className="text-sm text-foreground-muted text-center">
-                  In the Korean word <span className="native-text text-lg text-foreground">{blank}</span>{" "}
-                  ({variant.ko?.gloss})
+                  {quiz.contextLabel} <span className="native-text text-lg text-foreground">{context.blank}</span>{" "}
+                  ({context.gloss})
                 </span>
               )}
             </div>
@@ -640,14 +632,14 @@ export function SymbolsQuiz({
                 setInput(e.target.value);
                 setInvalid(null);
               }}
-              lang="ko"
+              lang={quiz.inputLang}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
               aria-label="Hangul letter"
               aria-invalid={invalid !== null}
-              placeholder="ㅎ"
+              placeholder={quiz.placeholder}
               className="native-text w-28 text-center text-4xl rounded-xl border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
             />
             <p className="text-xs text-danger min-h-4 text-center" role="alert">
@@ -670,10 +662,11 @@ export function SymbolsQuiz({
               </button>
             </div>
             {keypadOpen && (
-              <JamoKeypad
+              <QuizKeypad
+                deck={quiz.deck}
                 value={input}
-                onPick={(jamo) => {
-                  setInput(jamo);
+                onChange={(next) => {
+                  setInput(next);
                   setInvalid(null);
                 }}
               />

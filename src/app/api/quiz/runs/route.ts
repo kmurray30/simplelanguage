@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { gradeAnswer, itemById } from "@/lib/hangulQuiz";
+import { QUIZ_TYPES } from "@/lib/decks";
+import { getQuiz } from "@/lib/quizzes";
 import { LEARNER_COOKIE, LEARNER_COOKIE_OPTIONS, isLearnerId } from "@/lib/learner";
 import { loadRuns, loadStats } from "@/lib/quizStore";
 
 const RunSchema = z.object({
-  deck: z.literal("symbols"),
+  deck: z.enum(QUIZ_TYPES),
   mode: z.enum(["full", "smart"]),
   answers: z
     .array(
@@ -17,7 +18,8 @@ const RunSchema = z.object({
       }),
     )
     .min(1)
-    .max(100),
+    // The longest quiz ("All" katakana) is 130 questions.
+    .max(300),
 });
 
 // Saves a finished quiz. The server re-grades every answer from the question bank rather than
@@ -28,14 +30,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const { deck, mode, answers } = parsed.data;
+  const quiz = getQuiz(deck);
+  if (!quiz) return NextResponse.json({ error: `No quiz for ${deck}` }, { status: 400 });
 
   const graded: (z.infer<typeof RunSchema>["answers"][number] & { correct: boolean })[] = [];
   for (const a of answers) {
-    const item = itemById(a.itemId);
+    const item = quiz.itemById(a.itemId);
     if (!item || a.variantIndex >= item.variants.length) {
       return NextResponse.json({ error: `Unknown question ${a.itemId}` }, { status: 400 });
     }
-    graded.push({ ...a, correct: gradeAnswer(item, a.variantIndex, a.given).status === "correct" });
+    graded.push({ ...a, correct: quiz.grade(item, a.variantIndex, a.given).status === "correct" });
   }
 
   const cookieId = req.cookies.get(LEARNER_COOKIE)?.value;
@@ -49,7 +53,7 @@ export async function POST(req: NextRequest) {
     const created = await tx.quizRun.create({
       data: {
         learnerId,
-        languageCode: "ko",
+        languageCode: quiz.languageCode,
         deck,
         mode,
         total: graded.length,

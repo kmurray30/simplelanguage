@@ -6,14 +6,22 @@ const DECK_BLURB: Record<DeckType, string> = {
   words: "The words you've added to your list.",
   symbols: "The 40 Hangul letters: sound, name and an English example.",
   syllables: "270 common syllable blocks, from the basic grid to the tricky ones.",
+  hiragana: "All the hiragana: the basic 46, voiced ゛ and ゜ kana, combinations like きゃ, and small っ.",
+  katakana: "All the katakana, plus the long-vowel mark ー and foreign sounds like ファ and ティ.",
 };
 
 const QUIZ_BLURB: Partial<Record<DeckType, string>> = {
   symbols: "See an English sound, write the Hangul letter. Tracks your score and your weak spots.",
+  hiragana: "See an English sound and its romaji, write the hiragana - including the particles は, へ, を.",
+  katakana: "See an English sound and its romaji, write the katakana - including ー and foreign sounds.",
 };
 
 // Maps a deck to its quiz, when one exists.
-const DECK_QUIZ: Partial<Record<DeckType, QuizType>> = { symbols: "symbols" };
+const DECK_QUIZ: Partial<Record<DeckType, QuizType>> = {
+  symbols: "symbols",
+  hiragana: "hiragana",
+  katakana: "katakana",
+};
 
 const buttonBase = "px-3.5 py-1.5 rounded-full text-sm transition-colors";
 

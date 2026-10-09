@@ -10,38 +10,38 @@
 // their Revised Romanization code even though modern speech merges them).
 
 import { HANGUL_SYMBOLS } from "./hangul";
+import { blankedWord, fullWord } from "./hangulBlocks";
 import { explainWrong } from "./hangulMisconceptions";
+import type { Grade, QuizDefinition, QuizItem as BaseItem, QuizVariant as BaseVariant } from "./quizTypes";
 export { blankedWord, decomposeBlock, fullWord } from "./hangulBlocks";
+export type { Grade } from "./quizTypes";
 
 export type QuizPosition = "initial" | "medial" | "final" | "vowel";
 
-export type QuizVariant = {
-  // The English cue; "**x**" marks the sound being asked about.
-  text: string;
-  // Overrides the item's code for this variant (e.g. ㅅ in "sheep" is still written s).
-  code?: string;
-  // Replaces the default question text (used for the silent ㅇ).
-  prompt?: string;
-  // Extra explanation shown on the reveal side for this variant only.
-  note?: string;
+export const POSITION_LABEL: Record<QuizPosition, string> = {
+  initial: "Start of a syllable",
+  medial: "Between vowels",
+  final: "End of a syllable",
+  vowel: "Vowel",
+};
+
+export type QuizVariant = BaseVariant & {
   // Letters that share a sound (the finals ㄷㅅㅈㅊㅌㅆㅎ all end in t; ㅙ ㅚ ㅞ all say "weh") need a
   // Korean word to pin down which one is meant: `before + block + after`, with one letter of the
   // block blanked (its final by default, or its vowel).
   ko?: { before?: string; block: string; after?: string; blank?: "final" | "vowel"; gloss: string };
 };
 
-export type QuizItem = {
-  id: string; // "i:ㄱ" initial, "m:ㄱ" medial, "f:ㄱ" final, "v:ㅏ" vowel
-  answer: string; // the one canonical jamo
+// id: "i:ㄱ" initial, "m:ㄱ" medial, "f:ㄱ" final, "v:ㅏ" vowel. `answer` is the one canonical jamo
+// and `code` the Revised Romanization shown with the question.
+export type QuizItem = Omit<BaseItem, "variants"> & {
   position: QuizPosition;
-  code: string; // phonetic code shown with the question (Revised Romanization)
-  note: string; // position-aware explanation shown after every answer
   variants: QuizVariant[];
 };
 
 // --- Authoring helpers -------------------------------------------------------------------------
 
-type V = [text: string, extra?: Omit<QuizVariant, "text">];
+type V = [text: string, extra?: Omit<QuizVariant, "text" | "context">];
 
 const variants = (list: V[]): QuizVariant[] => list.map(([text, extra]) => ({ text, ...extra }));
 
@@ -49,6 +49,7 @@ const initial = (answer: string, code: string, note: string, list: V[]): QuizIte
   id: `i:${answer}`,
   answer,
   position: "initial",
+  group: POSITION_LABEL["initial"],
   code,
   note,
   variants: variants(list),
@@ -58,6 +59,7 @@ const medial = (answer: string, code: string, note: string, list: V[]): QuizItem
   id: `m:${answer}`,
   answer,
   position: "medial",
+  group: POSITION_LABEL["medial"],
   code,
   note,
   variants: variants(list),
@@ -67,6 +69,7 @@ const final = (answer: string, code: string, note: string, list: V[]): QuizItem 
   id: `f:${answer}`,
   answer,
   position: "final",
+  group: POSITION_LABEL["final"],
   code,
   note,
   variants: variants(list),
@@ -76,6 +79,7 @@ const vowel = (answer: string, code: string, note: string, list: V[]): QuizItem 
   id: `v:${answer}`,
   answer,
   position: "vowel",
+  group: POSITION_LABEL["vowel"],
   code,
   note,
   variants: variants(list),
@@ -330,13 +334,6 @@ export function itemById(id: string): QuizItem | undefined {
   return ITEM_BY_ID.get(id);
 }
 
-export const POSITION_LABEL: Record<QuizPosition, string> = {
-  initial: "Start of a syllable",
-  medial: "Between vowels",
-  final: "End of a syllable",
-  vowel: "Vowel",
-};
-
 export const DEFAULT_PROMPT = "Write the Hangul letter for the bold sound.";
 
 export function variantCode(item: QuizItem, variantIndex: number): string {
@@ -361,11 +358,6 @@ const FUSED_LETTERS = new Map<string, string>([
   ["ㅗㅏ", "ㅘ"], ["ㅗㅐ", "ㅙ"], ["ㅗㅣ", "ㅚ"], ["ㅜㅓ", "ㅝ"], ["ㅜㅔ", "ㅞ"], ["ㅜㅣ", "ㅟ"], ["ㅡㅣ", "ㅢ"],
   ["ㄱㄱ", "ㄲ"], ["ㄷㄷ", "ㄸ"], ["ㅂㅂ", "ㅃ"], ["ㅅㅅ", "ㅆ"], ["ㅈㅈ", "ㅉ"],
 ]);
-
-export type Grade =
-  | { status: "correct" }
-  | { status: "wrong"; given: string; message: string }
-  | { status: "invalid"; message: string };
 
 function normalizeGiven(input: string): { jamo: string } | { error: string } {
   const text = input.trim();
@@ -403,3 +395,32 @@ export function gradeAnswer(item: QuizItem, variantIndex: number, input: string)
   const variant = item.variants[variantIndex] ?? item.variants[0];
   return { status: "wrong", given: normalized.jamo, message: explainWrong(item, variant, normalized.jamo) };
 }
+
+// Resolve each Korean-word context into the generic shape the quiz UI reads.
+for (const item of QUIZ_ITEMS) {
+  for (const v of item.variants) {
+    if (!v.ko) continue;
+    const blank = blankedWord(v.ko);
+    if (blank) v.context = { blank, full: fullWord(v.ko), gloss: v.ko.gloss };
+  }
+}
+
+const SYMBOL_NAME = new Map(HANGUL_SYMBOLS.map((s) => [s.jamo, s.name]));
+
+export const HANGUL_QUIZ: QuizDefinition = {
+  deck: "symbols",
+  languageCode: "ko",
+  title: "Symbols quiz",
+  intro:
+    "You'll see an English word with the sound in bold, plus its phonetic code. Write the Hangul letter for that sound - the same letter can sound different at the start and the end of a syllable, so each position gets its own question.",
+  defaultPrompt: DEFAULT_PROMPT,
+  placeholder: "ㅎ",
+  inputLang: "ko",
+  contextLabel: "In the Korean word",
+  items: QUIZ_ITEMS,
+  groups: [POSITION_LABEL.initial, POSITION_LABEL.medial, POSITION_LABEL.final, POSITION_LABEL.vowel],
+  itemById,
+  variantCode,
+  grade: (item, variantIndex, input) => gradeAnswer(item as QuizItem, variantIndex, input),
+  answerLabel: (item) => SYMBOL_NAME.get(item.answer) ?? null,
+};

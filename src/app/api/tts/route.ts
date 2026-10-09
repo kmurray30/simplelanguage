@@ -5,11 +5,13 @@ import { serveAudioClip } from "@/lib/serveAudioClip";
 import { TtsError } from "@/lib/tts";
 import { LANGUAGES, isLanguageCode, type LanguageCode } from "@/lib/languages";
 import { HANGUL_AUDIO_TEXTS } from "@/lib/hangul";
+import { KANA_AUDIO_TEXTS } from "@/lib/kana";
 
 // Only texts the flashcard reference decks can ask for - this is not an open TTS endpoint, so a
 // stray request can't burn ElevenLabs quota on arbitrary input.
 const ALLOWED_TEXTS: Partial<Record<LanguageCode, ReadonlySet<string>>> = {
   ko: HANGUL_AUDIO_TEXTS,
+  ja: KANA_AUDIO_TEXTS,
 };
 
 export async function GET(req: NextRequest) {
