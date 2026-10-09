@@ -1,0 +1,158 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Keep in sync with CATEGORIES in src/lib/categories.ts.
+enum WordCategory {
+  BASICS
+  GREETINGS
+  PEOPLE_FAMILY
+  NUMBERS_COUNTING
+  TIME_DATE
+  FOOD_DRINK
+  RESTAURANT_DINING
+  SHOPPING
+  TRAVEL_TRANSPORTATION
+  DIRECTIONS_PLACES
+  HOME_DAILY_LIFE
+  WORK_SCHOOL
+  HEALTH_BODY
+  WEATHER_NATURE
+  EMOTIONS_FEELINGS
+  DESCRIPTIONS_COLORS
+  ANIMALS
+  HOBBIES_ENTERTAINMENT
+  TECHNOLOGY_COMMUNICATION
+  MONEY_FINANCE
+  CLOTHING
+  OTHER
+}
+
+model Language {
+  code           String   @id // ISO-ish short code, e.g. "zh"
+  name           String // e.g. "Chinese"
+  defaultVoiceId String? // TTS voice id used for this language, e.g. "zf_xiaobei"
+  words          Word[]
+  createdAt      DateTime @default(now())
+}
+
+model Word {
+  id           String   @id @default(cuid())
+  languageCode String
+  language     Language @relation(fields: [languageCode], references: [code])
+
+  nativeText   String // script text, e.g. "谢谢"
+  romanization String // e.g. pinyin with tone marks: "xièxie" -- always server-computed, never trusted from the LLM
+  phonetic     String // English-reader-friendly respelling, e.g. "syeh-syeh" -- LLM-generated
+  englishGloss String // natural, commonly-used translation (can be unstructured, e.g. "thanks (casual)")
+  usageNote    String? // short context note: how/when it's actually used
+  categories   WordCategory[] // normalized learning-unit categories, LLM-assigned - a word can belong to more than one (e.g. "hello" is both GREETINGS and BASICS)
+  breakdown    String? // LLM-generated memorization aid: morpheme/component breakdown + useful etymology - generated async after creation, so null until ready
+  starred      Boolean        @default(false) // user-pinned - sorts to the top of whatever filter is active, and always appears in the "Starred" filter
+
+  audioClipId String?
+  audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([languageCode, nativeText, englishGloss])
+  @@index([languageCode])
+  @@index([categories], type: Gin)
+}
+
+// Pre-generated, ranked, category-tagged pool of common words used to serve "words to learn
+// next" suggestions without calling the LLM per-request. Populated once by
+// scripts/generate-word-bank.ts, independent of any user's learned Word list.
+model SuggestionPoolWord {
+  id           String   @id @default(cuid())
+  languageCode String
+  nativeText   String
+  romanization String
+  phonetic     String
+  englishGloss String
+  usageNote    String
+  whyNext      String // short rationale for why this is a good word to learn
+  categories   WordCategory[]
+  rank         Int // 1 = most common/useful - words added on demand via search get MAX(rank)+1
+
+  audioClipId String?
+  audioClip   AudioClip? @relation(fields: [audioClipId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([languageCode, nativeText, englishGloss])
+  @@index([categories], type: Gin)
+  @@index([languageCode, rank])
+}
+
+model AudioClip {
+  id                  String               @id @default(cuid())
+  languageCode        String
+  text                String // exact text sent to the TTS model
+  voiceId             String
+  audioData           Bytes
+  mimeType            String
+  createdAt           DateTime             @default(now())
+  words               Word[]
+  suggestionPoolWords SuggestionPoolWord[]
+
+  @@unique([languageCode, text, voiceId])
+}
+
+// Anonymous per-browser identity (a cookie holds the id), so quiz history is private to each
+// visitor without logins. A real user account can later be attached to a Learner (or merge several).
+model Learner {
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  runs      QuizRun[]
+  stats     ItemStat[]
+}
+
+// One completed quiz. Only finished quizzes are saved.
+model QuizRun {
+  id           String   @id @default(cuid())
+  learnerId    String
+  learner      Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  languageCode String
+  deck         String // "symbols"
+  mode         String // "full" | "smart"
+  total        Int
+  correct      Int
+  createdAt    DateTime @default(now())
+  answers      QuizAnswer[]
+
+  @@index([learnerId, deck, createdAt])
+}
+
+model QuizAnswer {
+  id           String  @id @default(cuid())
+  runId        String
+  run          QuizRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  itemId       String // e.g. "f:ㅅ" - see src/lib/hangulQuiz.ts
+  variantIndex Int
+  given        String
+  correct      Boolean
+
+  @@index([runId])
+}
+
+// Rolling per-letter progress, used by the Smart quiz to skip what's already mastered.
+model ItemStat {
+  learnerId     String
+  learner       Learner   @relation(fields: [learnerId], references: [id], onDelete: Cascade)
+  deck          String
+  itemId        String
+  seen          Int       @default(0)
+  correctCount  Int       @default(0)
+  correctStreak Int       @default(0)
+  lastSeenAt    DateTime
+  lastWrongAt   DateTime?
+
+  @@id([learnerId, deck, itemId])
+}
