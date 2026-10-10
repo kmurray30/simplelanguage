@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "ItemStat" ADD COLUMN     "score" DOUBLE PRECISION NOT NULL DEFAULT 0,
+ADD COLUMN     "scoreAt" TIMESTAMP(3);

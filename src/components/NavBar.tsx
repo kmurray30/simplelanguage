@@ -5,13 +5,13 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clsx } from "clsx";
 import { LANGUAGES, LANGUAGE_CODES, DEFAULT_LANGUAGE, isLanguageCode } from "@/lib/languages";
 
-// Flashcards live under the Quiz hub, so the Quiz tab stays highlighted on /flashcards too.
+// Flashcards, quizzes and lessons all live under Learn, so the tab stays highlighted on /flashcards too.
 const links = [
   { href: "/", label: "List", match: (pathname: string) => pathname === "/" },
   {
-    href: "/quiz",
-    label: "Quiz",
-    match: (pathname: string) => pathname.startsWith("/quiz") || pathname.startsWith("/flashcards"),
+    href: "/learn",
+    label: "Learn",
+    match: (pathname: string) => pathname.startsWith("/learn") || pathname.startsWith("/flashcards"),
   },
 ];
 

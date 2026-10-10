@@ -407,9 +407,18 @@ for (const item of QUIZ_ITEMS) {
 
 const SYMBOL_NAME = new Map(HANGUL_SYMBOLS.map((s) => [s.jamo, s.name]));
 
+const AUDIO_SYLLABLE = new Map(HANGUL_SYMBOLS.map((s) => [s.jamo, s.audioSyllable]));
+
 export const HANGUL_QUIZ: QuizDefinition = {
   deck: "symbols",
   languageCode: "ko",
+  statsKey: "symbols",
+  answerSize: "letter",
+  // A lone jamo is read by its name, so play the representative syllable (ㄱ -> 가), as the flashcards do.
+  audioSrc: (item) => {
+    const text = AUDIO_SYLLABLE.get(item.answer);
+    return text ? `/api/tts?lang=ko&text=${encodeURIComponent(text)}` : null;
+  },
   title: "Symbols quiz",
   intro:
     "You'll see an English word with the sound in bold, plus its phonetic code. Write the Hangul letter for that sound - the same letter can sound different at the start and the end of a syllable, so each position gets its own question.",

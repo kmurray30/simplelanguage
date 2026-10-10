@@ -4,8 +4,13 @@ import { JamoKeypad } from "./JamoKeypad";
 import { KanaKeypad } from "./KanaKeypad";
 import type { QuizType } from "@/lib/decks";
 
-// The on-screen keypad for each letter quiz. A Hangul answer is one jamo, so a tap replaces the
-// answer; kana answers can be two characters (きゃ), so kana taps append.
+// Words are typed on the device keyboard; every letter deck has an on-screen keypad.
+export function hasKeypad(deck: QuizType): boolean {
+  return deck !== "words";
+}
+
+// A Hangul symbol answer is one jamo, so a tap replaces it; syllables are built from several
+// jamo and kana answers can be two characters (きゃ), so those taps append.
 export function QuizKeypad({
   deck,
   value,
@@ -16,5 +21,7 @@ export function QuizKeypad({
   onChange: (value: string) => void;
 }) {
   if (deck === "symbols") return <JamoKeypad value={value} onPick={onChange} />;
-  return <KanaKeypad script={deck} value={value} onChange={onChange} />;
+  if (deck === "syllables") return <JamoKeypad value={value} onPick={onChange} build />;
+  if (deck === "hiragana" || deck === "katakana") return <KanaKeypad script={deck} value={value} onChange={onChange} />;
+  return null;
 }

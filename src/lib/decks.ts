@@ -24,17 +24,15 @@ export function availableDecks(languageCode: LanguageCode): DeckType[] {
   return ["words"];
 }
 
-// Quizzes: the letter quizzes (Hangul symbols, hiragana, katakana). The Words and Syllables
-// quizzes are listed on the hub as "coming soon". A quiz shares its name with the deck it drills.
-export const QUIZ_TYPES = ["symbols", "hiragana", "katakana"] as const;
+// Quizzes and lessons: one per deck. A quiz shares its name with the deck it drills.
+export const QUIZ_TYPES = ["words", "symbols", "syllables", "hiragana", "katakana"] as const;
 export type QuizType = (typeof QUIZ_TYPES)[number];
 
 export function isQuizType(value: unknown): value is QuizType {
   return typeof value === "string" && (QUIZ_TYPES as readonly string[]).includes(value);
 }
 
+// Every deck has a quiz and a lesson.
 export function availableQuizzes(languageCode: LanguageCode): QuizType[] {
-  if (languageCode === "ko") return ["symbols"];
-  if (languageCode === "ja") return ["hiragana", "katakana"];
-  return [];
+  return availableDecks(languageCode);
 }

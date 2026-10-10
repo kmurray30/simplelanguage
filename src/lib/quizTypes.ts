@@ -31,13 +31,16 @@ export type QuizItem = {
 };
 
 export type Grade =
-  | { status: "correct" }
+  // `note` explains a correct-but-not-exact answer (missing accent, toneless pinyin, a same-sound spelling).
+  | { status: "correct"; note?: string }
   | { status: "wrong"; given: string; message: string }
   | { status: "invalid"; message: string };
 
 export type QuizDefinition = {
   deck: QuizType;
   languageCode: LanguageCode;
+  // Where progress is stored: the deck name, or "words-zh" etc. so each language's words are separate.
+  statsKey: string;
   title: string; // "Symbols quiz"
   intro: string; // setup-screen blurb
   defaultPrompt: string;
@@ -51,4 +54,8 @@ export type QuizDefinition = {
   grade(item: QuizItem, variantIndex: number, input: string): Grade;
   // Extra line under the answer on the reveal side (a letter's name, its other-script twin...).
   answerLabel(item: QuizItem): string | null;
+  // Audio for the answer (teach and verdict cards), played only from its button.
+  audioSrc(item: QuizItem): string | null;
+  // Letters and syllables get a small, huge-text answer box; words a wide one.
+  answerSize: "letter" | "word";
 };

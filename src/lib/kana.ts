@@ -327,3 +327,38 @@ export function kanaNote(entry: KanaEntry, script: KanaScript): string | undefin
 export const KANA_AUDIO_TEXTS: ReadonlySet<string> = new Set(
   KANA.filter((e) => e.group !== "Special").flatMap((e) => [e.hira, e.kata].filter((c): c is string => c !== null)),
 );
+
+// --- Kana -> romaji ------------------------------------------------------------------------------
+// Used to accept a Japanese word typed as its kana reading. Returns null for anything that isn't kana.
+
+const ROMAJI = new Map<string, string>();
+for (const e of KANA) {
+  if (e.group === "Special") continue;
+  if (e.hira) ROMAJI.set(e.hira, e.romaji);
+  ROMAJI.set(e.kata, e.romaji);
+}
+
+export function kanaToRomaji(text: string): string | null {
+  const chars = [...text];
+  let out = "";
+  let doubleNext = false;
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i];
+    if (ch === "っ" || ch === "ッ") {
+      doubleNext = true;
+      continue;
+    }
+    if (ch === "ー") {
+      const lastVowel = out.match(/[aeiou](?!.*[aeiou])/)?.[0];
+      if (lastVowel) out += lastVowel;
+      continue;
+    }
+    const pair = ROMAJI.get(ch + (chars[i + 1] ?? ""));
+    const romaji = pair ?? ROMAJI.get(ch);
+    if (!romaji) return null;
+    if (pair) i++;
+    out += doubleNext ? (romaji.startsWith("ch") ? "t" : romaji[0]) + romaji : romaji;
+    doubleNext = false;
+  }
+  return out;
+}

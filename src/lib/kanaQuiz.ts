@@ -6,7 +6,7 @@
 // word), and the small っ. The katakana quiz adds the long-vowel mark ー and the foreign-sound
 // combinations (ファ, ティ...). Wrong answers get the fixed responses in kanaMisconceptions.ts.
 
-import { CUES, KANA, isHiraganaChar, isKatakanaChar, kanaNote, type KanaEntry, type KanaGroup, type KanaScript } from "./kana";
+import { CUES, KANA, KANA_AUDIO_TEXTS, isHiraganaChar, isKatakanaChar, kanaNote, type KanaEntry, type KanaGroup, type KanaScript } from "./kana";
 import { explainKanaWrong } from "./kanaMisconceptions";
 import type { Grade, QuizDefinition, QuizItem, QuizVariant } from "./quizTypes";
 
@@ -169,6 +169,10 @@ function makeQuiz(script: KanaScript): QuizDefinition {
   return {
     deck: script,
     languageCode: "ja",
+    statsKey: script,
+    answerSize: "letter",
+    audioSrc: (item) =>
+      KANA_AUDIO_TEXTS.has(item.answer) ? `/api/tts?lang=ja&text=${encodeURIComponent(item.answer)}` : null,
     title: script === "hiragana" ? "Hiragana quiz" : "Katakana quiz",
     intro: `You'll see an English word with the sound in bold, plus its romaji. Write it in ${script} - type it with a Japanese keyboard, or tap the keypad (゛ ゜ and 小 change the last kana).`,
     defaultPrompt: `Write the ${script} for the bold sound.`,

@@ -4,7 +4,7 @@
 // Anything with an id and a list of question variants can be quizzed.
 export type Pickable = { id: string; variants: readonly unknown[] };
 
-export type QuizMode = "full" | "smart";
+export type QuizMode = "full" | "smart" | "lesson";
 
 // What the server stores per letter (dates as ISO strings so it crosses the server/client boundary).
 export type ItemStatDTO = {
@@ -14,6 +14,8 @@ export type ItemStatDTO = {
   correctStreak: number;
   lastSeenAt: string;
   lastWrongAt: string | null;
+  score: number; // mastery score as of scoreAt - see src/lib/mastery.ts for the decay
+  scoreAt: string | null;
 };
 
 export type RunDTO = {

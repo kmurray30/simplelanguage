@@ -4,26 +4,17 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { clsx } from "clsx";
 import { Emphasis } from "./Emphasis";
-import { QuizKeypad } from "./QuizKeypad";
-import { getQuiz } from "@/lib/quizzes";
+import { QuestionForm, VerdictContent, verdictColors, type Revealed } from "./QuizCards";
+import { AnswerModeToggle, MasteryGrid, PillToggle, ScoreHistory } from "./learnShared";
+import { buildQuiz } from "@/lib/quizzes";
 import type { QuizType } from "@/lib/decks";
-import type { QuizDefinition } from "@/lib/quizTypes";
-import {
-  countSkippable,
-  isMastered,
-  pickQuestions,
-  type ItemStatDTO,
-  type Pick,
-  type QuizMode,
-  type RunDTO,
-} from "@/lib/quizSelection";
+import type { AnswerMode, QuizWord } from "@/lib/wordsQuiz";
+import { countSkippable, pickQuestions, type ItemStatDTO, type Pick, type QuizMode, type RunDTO } from "@/lib/quizSelection";
 import type { LanguageCode } from "@/types";
 
 type Phase = "setup" | "asking" | "revealed" | "results";
 
 type GivenAnswer = { itemId: string; variantIndex: number; given: string; correct: boolean };
-
-type Revealed = { correct: boolean; given: string; message: string | null };
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -35,135 +26,28 @@ function lengthOptions(total: number): { label: string; count: number }[] {
   ];
 }
 
-function PillToggle<T extends string | number>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div className="flex rounded-full border border-border p-0.5 text-xs">
-      {options.map((o) => (
-        <button
-          key={String(o.value)}
-          type="button"
-          onClick={() => onChange(o.value)}
-          className={clsx(
-            "px-3 py-1 rounded-full transition-colors",
-            value === o.value ? "bg-accent text-accent-foreground" : "text-foreground-muted hover:text-foreground",
-          )}
-        >
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
+export function itemNoun(deck: QuizType): string {
+  return deck === "words" ? "word" : deck === "syllables" ? "syllable" : "letter";
 }
 
-function statusOf(stat: ItemStatDTO | undefined): "new" | "struggling" | "learning" | "mastered" {
-  if (!stat) return "new";
-  if (isMastered(stat)) return "mastered";
-  return stat.correctStreak === 0 ? "struggling" : "learning";
-}
-
-const STATUS_STYLE: Record<ReturnType<typeof statusOf>, string> = {
-  new: "border-border bg-surface text-foreground-muted",
-  struggling: "border-danger/40 bg-danger-soft text-foreground",
-  learning: "border-accent/40 bg-accent-soft text-foreground",
-  mastered: "border-success/40 bg-success-soft text-foreground",
-};
-
-function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: ItemStatDTO[] }) {
-  const byId = new Map(stats.map((s) => [s.itemId, s]));
-  return (
-    <div className="flex flex-col gap-3">
-      {quiz.groups.map((group) => (
-        <div key={group} className="flex flex-col gap-1.5">
-          <span className="text-[11px] uppercase tracking-wide text-foreground-muted">{group}</span>
-          <div className="flex flex-wrap gap-1.5">
-            {quiz.items.filter((item) => item.group === group).map((item) => {
-              const stat = byId.get(item.id);
-              const status = statusOf(stat);
-              return (
-                <span
-                  key={item.id}
-                  title={`${item.answer} · ${group.toLowerCase()} · ${
-                    stat ? `${stat.correctCount}/${stat.seen} correct, streak ${stat.correctStreak}` : "not asked yet"
-                  }`}
-                  className={clsx(
-                    "native-text min-w-9 h-9 px-1 rounded-lg border flex items-center justify-center text-lg",
-                    STATUS_STYLE[status],
-                  )}
-                >
-                  {item.answer}
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-foreground-muted">
-        {(["new", "struggling", "learning", "mastered"] as const).map((status) => (
-          <span key={status} className="flex items-center gap-1">
-            <span className={clsx("w-3 h-3 rounded border", STATUS_STYLE[status])} />
-            {{ new: "not asked yet", struggling: "missed last time", learning: "1 in a row", mastered: "2+ in a row" }[status]}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Oldest to newest, left to right.
-function ScoreHistory({ runs }: { runs: RunDTO[] }) {
-  if (runs.length === 0) {
-    return <p className="text-sm text-foreground-muted">No scores yet - finish a quiz and it shows up here.</p>;
-  }
-  const shown = runs.slice(0, 12).reverse();
-  const best = Math.max(...runs.map((r) => Math.round((r.correct / r.total) * 100)));
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-end gap-1.5 h-20" role="img" aria-label={`Your last ${shown.length} quiz scores`}>
-        {shown.map((run) => {
-          const pct = Math.round((run.correct / run.total) * 100);
-          return (
-            <div
-              key={run.id}
-              className="flex-none w-9 flex flex-col items-center justify-end gap-0.5 h-full"
-              title={`${run.createdAt.slice(0, 10)} · ${run.mode} quiz · ${run.correct}/${run.total}`}
-            >
-              <span className="text-[10px] text-foreground-muted tabular-nums">{pct}</span>
-              <div
-                className={clsx("w-full rounded-t", run.mode === "smart" ? "bg-accent/50" : "bg-accent")}
-                style={{ height: `${Math.max(pct, 4) * 0.6}%` }}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <p className="text-[11px] text-foreground-muted">
-        % correct, oldest to newest · dark bars full quizzes, light bars smart quizzes · best {best}%
-      </p>
-    </div>
-  );
-}
-
-export function LetterQuiz({
+export function QuizSession({
   deck,
   languageCode,
+  words,
+  initialAnswerMode,
   initialStats,
   initialRuns,
 }: {
   deck: QuizType;
   languageCode: LanguageCode;
+  words: QuizWord[];
+  initialAnswerMode: AnswerMode;
   initialStats: ItemStatDTO[];
   initialRuns: RunDTO[];
 }) {
-  // The page only renders this for a deck that has a quiz, so this lookup always succeeds.
-  const quiz = getQuiz(deck)!;
+  const [answerMode, setAnswerMode] = useState<AnswerMode>(initialAnswerMode);
+  const quiz = buildQuiz({ deck, languageCode, words, answerMode });
+  const noun = itemNoun(deck);
   const LENGTHS = lengthOptions(quiz.items.length);
   const [phase, setPhase] = useState<Phase>("setup");
   const [mode, setMode] = useState<QuizMode>("full");
@@ -197,21 +81,21 @@ export function LetterQuiz({
 
   const pick = questions[index];
   const item = pick ? quiz.itemById(pick.itemId) : undefined;
-  const variant = item && pick ? item.variants[pick.variantIndex] : undefined;
 
   function start(nextMode: QuizMode) {
     const selection = pickQuestions({ mode: nextMode, items: quiz.items, stats, count });
     setQuestions(selection.picks);
     const summary = selection.summary;
+    const plural = (n: number) => `${n} ${noun}${n === 1 ? "" : "s"}`;
     setQuizNote(
       !summary
         ? null
         : summary.struggling > 0 && summary.toppedUp > 0
-          ? `Focusing on ${summary.struggling} letter${summary.struggling === 1 ? "" : "s"} you've been missing, plus a quick review of the rest.`
+          ? `Focusing on ${plural(summary.struggling)} you've been missing, plus a quick review of the rest.`
           : summary.toppedUp > 0
-            ? "You've mastered most letters, so this one is mostly quick review."
+            ? `You've mastered most ${noun}s, so this one is mostly quick review.`
             : summary.struggling > 0
-              ? `Focusing on ${summary.struggling} letter${summary.struggling === 1 ? "" : "s"} you've been missing.`
+              ? `Focusing on ${plural(summary.struggling)} you've been missing.`
               : null,
     );
     setFinishedMode(nextMode);
@@ -235,7 +119,12 @@ export function LetterQuiz({
     }
     setInvalid(null);
     const correct = grade.status === "correct";
-    setRevealed({ correct, given: correct ? item.answer : grade.status === "wrong" ? grade.given : input, message: grade.status === "wrong" ? grade.message : null });
+    setRevealed({
+      correct,
+      given: grade.status === "wrong" ? grade.given : input.trim(),
+      message: grade.status === "wrong" ? grade.message : null,
+      note: grade.status === "correct" ? grade.note : null,
+    });
     setAnswers([...answers, { itemId: item.id, variantIndex: pick.variantIndex, given: input.trim(), correct }]);
     setPhase("revealed");
   }
@@ -263,6 +152,7 @@ export function LetterQuiz({
       correct: a.correct,
       given: grade.status === "wrong" ? grade.given : a.given,
       message: grade.status === "wrong" ? grade.message : null,
+      note: grade.status === "correct" ? grade.note : null,
     };
   }
 
@@ -277,67 +167,8 @@ export function LetterQuiz({
     setReviewIndex(reviewIndex + 1 >= index ? null : reviewIndex + 1);
   }
 
-  // The verdict side of a card: used for the live flip and for read-only review.
-  function verdictContent(q: Pick, entry: Revealed) {
-    const qItem = quiz.itemById(q.itemId);
-    const qVariant = qItem?.variants[q.variantIndex];
-    if (!qItem || !qVariant) return null;
-    const qContext = qVariant.context;
-    return (
-      <>
-        <div className="flex items-center gap-2" aria-live="polite">
-          <span
-            className={clsx(
-              "w-9 h-9 rounded-full flex items-center justify-center text-xl font-semibold text-white",
-              entry.correct ? "bg-success" : "bg-danger",
-            )}
-            aria-hidden
-          >
-            {entry.correct ? "✓" : "✗"}
-          </span>
-          <span className="text-lg font-medium">{entry.correct ? "Correct" : "Not quite"}</span>
-        </div>
-
-        <div className="flex flex-col items-center gap-0.5">
-          <span className="native-text text-7xl leading-tight">{qItem.answer}</span>
-          <span className="native-text text-sm text-foreground-muted">{quiz.answerLabel(qItem)}</span>
-        </div>
-
-        {!entry.correct && (
-          <p className="text-sm">
-            You wrote <span className="native-text text-xl align-middle">{entry.given || "nothing"}</span>
-          </p>
-        )}
-
-        <p className="text-sm text-foreground-muted">
-          <Emphasis text={qVariant.text} highlight /> · {quiz.variantCode(qItem, q.variantIndex)}
-          {qContext && (
-            <>
-              {" "}
-              · in <span className="native-text text-foreground">{qContext.full}</span> ({qContext.gloss})
-            </>
-          )}
-        </p>
-
-        {entry.message && (
-          <p className="text-sm rounded-xl border border-danger/30 bg-surface/60 px-3 py-2 text-left">{entry.message}</p>
-        )}
-
-        <p className="text-sm text-foreground-muted text-left">
-          <span className="font-medium text-foreground">{qItem.group}: </span>
-          {qItem.note}
-          {qVariant.note && <> {qVariant.note}</>}
-        </p>
-      </>
-    );
-  }
-
-  const verdictColors = (correct: boolean | undefined) =>
-    correct ? "border-success/50 bg-success-soft" : "border-danger/50 bg-danger-soft";
-
   async function finish() {
     setPhase("results");
-    setSaveState("saving");
     await save(answers, finishedMode);
   }
 
@@ -349,6 +180,8 @@ export function LetterQuiz({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           deck: quiz.deck,
+          lang: languageCode,
+          answerMode,
           mode: savedMode,
           answers: toSave.map(({ itemId, variantIndex, given }) => ({ itemId, variantIndex, given })),
         }),
@@ -363,7 +196,18 @@ export function LetterQuiz({
     }
   }
 
-  const backHref = `/quiz?lang=${languageCode}`;
+  const backHref = `/learn?lang=${languageCode}`;
+
+  if (quiz.items.length === 0) {
+    return (
+      <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-16 flex flex-col items-center gap-3 text-center">
+        <p className="text-sm text-foreground-muted">You don&apos;t have any words yet. Add some from the list to quiz yourself.</p>
+        <Link href={`/?lang=${languageCode}`} className="text-sm underline">
+          Go to your list
+        </Link>
+      </div>
+    );
+  }
 
   // ---- Setup -----------------------------------------------------------------------------------
   if (phase === "setup") {
@@ -373,14 +217,12 @@ export function LetterQuiz({
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="text-lg font-medium">{quiz.title}</h1>
           <Link href={backHref} className="text-sm text-foreground-muted hover:text-foreground">
-            &larr; All practice
+            &larr; Learn
           </Link>
         </div>
 
         <section className="rounded-2xl border border-border bg-surface p-4 flex flex-col gap-4">
-          <p className="text-sm text-foreground-muted">
-            {quiz.intro}
-          </p>
+          <p className="text-sm text-foreground-muted">{quiz.intro}</p>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
             <div className="flex flex-col gap-1.5">
               <span className="text-[11px] uppercase tracking-wide text-foreground-muted">Quiz</span>
@@ -395,19 +237,16 @@ export function LetterQuiz({
             </div>
             <div className="flex flex-col gap-1.5">
               <span className="text-[11px] uppercase tracking-wide text-foreground-muted">Questions</span>
-              <PillToggle
-                options={LENGTHS.map((l) => ({ value: l.count, label: l.label }))}
-                value={count}
-                onChange={setCount}
-              />
+              <PillToggle options={LENGTHS.map((l) => ({ value: l.count, label: l.label }))} value={count} onChange={setCount} />
             </div>
+            {deck === "words" && <AnswerModeToggle languageCode={languageCode} value={answerMode} onChange={setAnswerMode} />}
           </div>
           <p className="text-xs text-foreground-muted">
             {mode === "full"
-              ? "A random mix across every letter and position."
+              ? `A random mix across every ${noun}.`
               : stats.length === 0
-                ? "Smart quizzes focus on the letters you miss. Take a full quiz first so there's something to learn from."
-                : `Focuses on letters you've missed or haven't seen. ${skippable} letter${skippable === 1 ? "" : "s"} you got right in 2 quizzes in a row ${skippable === 1 ? "is" : "are"} skipped (they return after a week).`}
+                ? `Smart quizzes focus on the ${noun}s you miss. Take a full quiz first so there's something to learn from.`
+                : `Focuses on ${noun}s you've missed or haven't seen. ${skippable} ${noun}${skippable === 1 ? "" : "s"} you got right in 2 quizzes in a row ${skippable === 1 ? "is" : "are"} skipped (they return after a week).`}
           </p>
           <button
             type="button"
@@ -424,7 +263,7 @@ export function LetterQuiz({
         </section>
 
         <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium">Letter by letter</h2>
+          <h2 className="text-sm font-medium">{noun[0].toUpperCase() + noun.slice(1)} by {noun}</h2>
           <MasteryGrid quiz={quiz} stats={stats} />
         </section>
       </div>
@@ -453,8 +292,7 @@ export function LetterQuiz({
           <span className="text-sm text-foreground-muted">{pct}% correct</span>
           {previousPct !== null && (
             <span className="text-sm text-foreground-muted">
-              Last time: {previousPct}%
-              {pct > previousPct ? " - you improved" : pct < previousPct ? "" : " - the same"}
+              Last time: {previousPct}%{pct > previousPct ? " - you improved" : pct < previousPct ? "" : " - the same"}
             </span>
           )}
           <span className="text-xs text-foreground-muted min-h-4" aria-live="polite">
@@ -487,12 +325,8 @@ export function LetterQuiz({
           >
             Smart quiz
           </button>
-          <button
-            type="button"
-            onClick={() => setPhase("setup")}
-            className="px-4 py-2 rounded-full text-sm text-foreground-muted hover:text-foreground"
-          >
-            Scores &amp; letters
+          <button type="button" onClick={() => setPhase("setup")} className="px-4 py-2 rounded-full text-sm text-foreground-muted hover:text-foreground">
+            Scores &amp; progress
           </button>
         </div>
 
@@ -506,15 +340,15 @@ export function LetterQuiz({
                 const v = missedItem.variants[a.variantIndex];
                 return (
                   <li key={`${a.itemId}-${i}`} className="rounded-xl border border-border bg-surface p-3 flex items-center gap-3">
-                    <span className="native-text text-3xl w-10 text-center">{missedItem.answer}</span>
+                    <span className={clsx("native-text text-center", quiz.answerSize === "word" ? "text-xl" : "text-3xl w-10")}>
+                      {missedItem.answer}
+                    </span>
                     <div className="flex-1 min-w-0 text-sm">
                       <div>
-                        <Emphasis text={v.text} highlight />{" "}
-                        <span className="text-foreground-muted">· {quiz.variantCode(missedItem, a.variantIndex)}</span>
+                        <Emphasis text={v.text} highlight /> <span className="text-foreground-muted">· {quiz.variantCode(missedItem, a.variantIndex)}</span>
                       </div>
                       <div className="text-xs text-foreground-muted">
-                        {missedItem.group} · you wrote{" "}
-                        <span className="native-text">{a.given || "nothing"}</span>
+                        {missedItem.group} · you wrote <span className="native-text">{a.given || "nothing"}</span>
                       </div>
                     </div>
                   </li>
@@ -533,11 +367,10 @@ export function LetterQuiz({
   }
 
   // ---- Asking / revealed -----------------------------------------------------------------------
-  if (!item || !pick || !variant) return null;
-  const context = variant.context;
+  if (!item || !pick) return null;
   const isRevealed = phase === "revealed" && revealed !== null;
   const isLast = index + 1 === questions.length;
-  const reviewing = reviewIndex !== null ? reviewIndex : null;
+  const reviewing = reviewIndex;
   const reviewPick = reviewing !== null ? questions[reviewing] : undefined;
   const reviewResult = reviewing !== null ? reviewEntry(reviewing) : null;
   const canGoBack = (reviewIndex ?? index) > 0;
@@ -567,16 +400,9 @@ export function LetterQuiz({
 
       {reviewing !== null && reviewPick && reviewResult ? (
         <>
-          <p className="text-xs text-foreground-muted text-center">
-            Looking back at an answered card - answers are locked.
-          </p>
-          <div
-            className={clsx(
-              "rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center",
-              verdictColors(reviewResult.correct),
-            )}
-          >
-            {verdictContent(reviewPick, reviewResult)}
+          <p className="text-xs text-foreground-muted text-center">Looking back at an answered card - answers are locked.</p>
+          <div className={clsx("rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center", verdictColors(reviewResult.correct))}>
+            <VerdictContent quiz={quiz} pick={reviewPick} entry={reviewResult} />
           </div>
           <div className="flex items-center justify-center gap-3">
             <button
@@ -593,108 +419,54 @@ export function LetterQuiz({
               onClick={reviewForward}
               className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
             >
-              {reviewing + 1 >= index ? `Back to question ${index + 1}` : "Next \u2192"}
+              {reviewing + 1 >= index ? `Back to question ${index + 1}` : "Next →"}
             </button>
           </div>
         </>
       ) : (
-        <>
-      <div className="[perspective:1200px]">
-        <div
-          // Only animate the reveal. Resetting for the next question must be instant: the back
-          // face already holds the NEXT question's answer by then, and a flip-back would show it.
-          className={clsx("grid [transform-style:preserve-3d]", isRevealed && "transition-transform duration-500")}
-          style={{ transform: isRevealed ? "rotateY(180deg)" : "rotateY(0deg)" }}
-        >
-          {/* Front: the question */}
-          <form
-            onSubmit={submit}
-            inert={isRevealed}
-            className="[grid-area:1/1] [backface-visibility:hidden] rounded-3xl border border-border bg-surface shadow-sm p-6 flex flex-col items-center gap-4"
+        <div className="[perspective:1200px]">
+          <div
+            // Only animate the reveal. Resetting for the next question must be instant: the back
+            // face already holds the NEXT question's answer by then, and a flip-back would show it.
+            className={clsx("grid [transform-style:preserve-3d]", isRevealed && "transition-transform duration-500")}
+            style={{ transform: isRevealed ? "rotateY(180deg)" : "rotateY(0deg)" }}
           >
-            <p className="text-sm text-foreground-muted text-center">{variant.prompt ?? quiz.defaultPrompt}</p>
-            <div className="flex flex-col items-center gap-2 py-2">
-              <span className="text-4xl font-normal text-foreground-muted text-center">
-                <Emphasis text={variant.text} highlight />
-              </span>
-              <span className="text-lg font-mono px-3 py-0.5 rounded-full bg-accent-soft">{quiz.variantCode(item, pick.variantIndex)}</span>
-              {context && (
-                <span className="text-sm text-foreground-muted text-center">
-                  {quiz.contextLabel} <span className="native-text text-lg text-foreground">{context.blank}</span>{" "}
-                  ({context.gloss})
-                </span>
-              )}
-            </div>
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
+            <QuestionForm
+              quiz={quiz}
+              pick={pick}
+              input={input}
+              onInput={(value) => {
+                setInput(value);
                 setInvalid(null);
               }}
-              lang={quiz.inputLang}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              aria-label="Hangul letter"
-              aria-invalid={invalid !== null}
-              placeholder={quiz.placeholder}
-              className="native-text w-28 text-center text-4xl rounded-xl border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent/40"
+              invalid={invalid}
+              onSubmit={submit}
+              keypadOpen={keypadOpen}
+              onToggleKeypad={() => setKeypadOpen((o) => !o)}
+              inputRef={inputRef}
+              inert={isRevealed}
+              className="[grid-area:1/1] [backface-visibility:hidden]"
             />
-            <p className="text-xs text-danger min-h-4 text-center" role="alert">
-              {invalid}
-            </p>
-            <div className="flex items-center gap-3">
+            <div
+              inert={!isRevealed}
+              style={{ transform: "rotateY(180deg)" }}
+              className={clsx(
+                "[grid-area:1/1] [backface-visibility:hidden] rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center",
+                verdictColors(revealed?.correct),
+              )}
+            >
+              {revealed && <VerdictContent quiz={quiz} pick={pick} entry={revealed} />}
               <button
+                ref={reviewing === null ? nextRef : undefined}
                 type="button"
-                onClick={() => setKeypadOpen((o) => !o)}
-                aria-expanded={keypadOpen}
-                className="px-3 py-2 rounded-full text-sm border border-border hover:bg-surface-muted transition-colors"
+                onClick={next}
+                className="mt-1 px-5 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
               >
-                {keypadOpen ? "Hide keypad" : "Keypad"}
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
-              >
-                Check
+                {isLast ? "See results" : "Next →"}
               </button>
             </div>
-            {keypadOpen && (
-              <QuizKeypad
-                deck={quiz.deck}
-                value={input}
-                onChange={(next) => {
-                  setInput(next);
-                  setInvalid(null);
-                }}
-              />
-            )}
-          </form>
-
-          {/* Back: the verdict */}
-          <div
-            inert={!isRevealed}
-            style={{ transform: "rotateY(180deg)" }}
-            className={clsx(
-              "[grid-area:1/1] [backface-visibility:hidden] rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center",
-              verdictColors(revealed?.correct),
-            )}
-          >
-            {revealed && verdictContent(pick, revealed)}
-            <button
-              ref={reviewing === null ? nextRef : undefined}
-              type="button"
-              onClick={next}
-              className="mt-1 px-5 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
-            >
-              {isLast ? "See results" : "Next \u2192"}
-            </button>
           </div>
         </div>
-      </div>
-        </>
       )}
     </div>
   );

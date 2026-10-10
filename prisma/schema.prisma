@@ -120,8 +120,8 @@ model QuizRun {
   learnerId    String
   learner      Learner  @relation(fields: [learnerId], references: [id], onDelete: Cascade)
   languageCode String
-  deck         String // "symbols"
-  mode         String // "full" | "smart"
+  deck         String // "symbols", "hiragana", "words-zh"...
+  mode         String // "full" | "smart" | "lesson"
   total        Int
   correct      Int
   createdAt    DateTime @default(now())
@@ -153,6 +153,10 @@ model ItemStat {
   correctStreak Int       @default(0)
   lastSeenAt    DateTime
   lastWrongAt   DateTime?
+  // Mastery score 0-100, as of scoreAt. It decays over time (see src/lib/mastery.ts), so the
+  // current value is always computed from these two, never stored pre-decayed.
+  score         Float     @default(0)
+  scoreAt       DateTime?
 
   @@id([learnerId, deck, itemId])
 }
