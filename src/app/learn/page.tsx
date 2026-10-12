@@ -29,7 +29,7 @@ export default async function LearnPage({ searchParams }: PageProps<"/learn">) {
       </h1>
       <ul className="flex flex-col gap-3">
         {summaries.map(({ deck, total, counts }) => {
-          const known = counts.strong + counts.learning + counts.weak;
+          const known = counts.reviewed + counts.review;
           return (
             <li key={deck} className="rounded-2xl border border-border bg-surface p-4 flex flex-col gap-3">
               <div>
@@ -39,14 +39,13 @@ export default async function LearnPage({ searchParams }: PageProps<"/learn">) {
               {total > 0 && (
                 <div className="flex flex-col gap-1">
                   <div className="flex h-1.5 rounded-full overflow-hidden bg-surface-muted" aria-hidden>
-                    <div className="bg-success" style={{ width: `${(counts.strong / total) * 100}%` }} />
-                    <div className="bg-accent" style={{ width: `${(counts.learning / total) * 100}%` }} />
-                    <div className="bg-danger/60" style={{ width: `${(counts.weak / total) * 100}%` }} />
+                    <div className="bg-success" style={{ width: `${(counts.reviewed / total) * 100}%` }} />
+                    <div className="bg-accent" style={{ width: `${(counts.review / total) * 100}%` }} />
                   </div>
                   <p className="text-xs text-foreground-muted">
                     {known === 0
                       ? `${total} to learn`
-                      : `${counts.strong} strong · ${counts.learning} learning · ${counts.weak} weak · ${counts.new} new`}
+                      : `${counts.reviewed} reviewed · ${counts.review} need review · ${counts.new} unlearned`}
                   </p>
                 </div>
               )}

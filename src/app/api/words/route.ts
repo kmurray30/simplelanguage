@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       categories: true,
       breakdown: true,
       starred: true,
+      source: true,
       audioClipId: true,
       createdAt: true,
       updatedAt: true,

@@ -15,6 +15,8 @@ export type Word = {
   categories: WordCategory[];
   breakdown: string | null;
   starred: boolean;
+  // "added" = the user added it; "lesson" = a lesson taught it from the suggestion pool.
+  source: "added" | "lesson";
   hasAudio: boolean;
   createdAt: string;
   updatedAt: string;

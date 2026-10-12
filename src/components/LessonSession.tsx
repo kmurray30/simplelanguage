@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { clsx } from "clsx";
 import { QuestionForm, TeachContent, VerdictContent, verdictColors, type Revealed } from "./QuizCards";
-import { AnswerModeToggle, BAND_STYLE, MasteryGrid, ScoreHistory } from "./learnShared";
+import { AnswerModeToggle, BAND_STYLE, MasteryGrid, PillToggle, ScoreHistory } from "./learnShared";
 import { itemNoun } from "./QuizSession";
 import { buildQuiz } from "@/lib/quizzes";
 import type { QuizType } from "@/lib/decks";
-import { LESSON_SIZE, outcomeOf, planLesson, scheduleRepeats, type LessonCard } from "@/lib/lessonPlan";
-import { BAND_LABEL, bandOf, effectiveScore, type Band, type Outcome } from "@/lib/mastery";
+import { LESSON_SIZE, LESSON_SIZES, outcomeOf, planLesson, scheduleRepeats, type LessonCard } from "@/lib/lessonPlan";
+import { BAND_LABEL, bandOf, type Band, type Outcome } from "@/lib/mastery";
 import type { ItemStatDTO, RunDTO } from "@/lib/quizSelection";
-import type { AnswerMode, QuizWord } from "@/lib/wordsQuiz";
+import { POOL_PREFIX, type AnswerMode, type QuizWord } from "@/lib/wordsQuiz";
 import type { LanguageCode } from "@/types";
 
 type Phase = "start" | "card" | "results";
@@ -41,6 +41,7 @@ export function LessonSession({
   deck,
   languageCode,
   words,
+  poolWords,
   initialAnswerMode,
   initialStats,
   initialRuns,
@@ -48,18 +49,23 @@ export function LessonSession({
   deck: QuizType;
   languageCode: LanguageCode;
   words: QuizWord[];
+  // Suggestion-pool words a lesson can introduce (saved to the list as "learned" when it finishes).
+  poolWords: QuizWord[];
   initialAnswerMode: AnswerMode;
   initialStats: ItemStatDTO[];
   initialRuns: RunDTO[];
 }) {
   const [answerMode, setAnswerMode] = useState<AnswerMode>(initialAnswerMode);
-  const quiz = buildQuiz({ deck, languageCode, words, answerMode });
+  const quiz = buildQuiz({ deck, languageCode, words: [...words, ...poolWords], answerMode });
+  // The progress grid only shows what's already on the list, not the words a lesson could add.
+  const gridQuiz = { ...quiz, items: quiz.items.filter((i) => !i.id.startsWith(POOL_PREFIX)) };
   const noun = itemNoun(deck);
 
   const [phase, setPhase] = useState<Phase>("start");
   const [stats, setStats] = useState(initialStats);
   const [runs, setRuns] = useState(initialRuns);
-  const [statsBefore, setStatsBefore] = useState<ItemStatDTO[]>([]);
+  const [size, setSize] = useState<number>(LESSON_SIZE);
+  const [idMap, setIdMap] = useState<Record<string, string>>({});
   const [cards, setCards] = useState<LessonCard[]>([]);
   const [newIds, setNewIds] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
@@ -86,9 +92,8 @@ export function LessonSession({
 
   function start() {
     const startedAt = currentTime();
-    const plan = planLesson({ items: quiz.items, stats, now: startedAt });
+    const plan = planLesson({ items: quiz.items, stats, now: startedAt, size });
     setNow(startedAt);
-    setStatsBefore(stats);
     setCards(plan.cards);
     setNewIds(plan.newIds);
     setIndex(0);
@@ -156,7 +161,8 @@ export function LessonSession({
         }),
       });
       if (!res.ok) throw new Error(`Save failed (${res.status})`);
-      const data: { stats: ItemStatDTO[]; runs: RunDTO[] } = await res.json();
+      const data: { stats: ItemStatDTO[]; runs: RunDTO[]; idMap: Record<string, string> } = await res.json();
+      setIdMap(data.idMap);
       setStats(data.stats);
       setRuns(data.runs);
       setNow(currentTime());
@@ -181,10 +187,12 @@ export function LessonSession({
 
   // ---- Start -----------------------------------------------------------------------------------
   if (phase === "start") {
-    const counts: Record<Band, number> = { new: 0, weak: 0, learning: 0, strong: 0 };
+    const counts: Record<Band, number> = { new: 0, review: 0, reviewed: 0 };
     const statById = new Map(stats.map((s) => [s.itemId, s]));
-    for (const it of quiz.items) counts[bandOf(statById.get(it.id), now)]++;
-    const newInNext = Math.min(counts.new, Math.round(Math.min(LESSON_SIZE, quiz.items.length) / 3));
+    for (const it of gridQuiz.items) counts[bandOf(statById.get(it.id), now)]++;
+    const unseenTotal = quiz.items.filter((it) => !statById.get(it.id)?.scoreAt).length;
+    const lessonSize = Math.min(size, quiz.items.length);
+    const newInNext = Math.min(unseenTotal, Math.round(lessonSize / 3));
     return (
       <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-6">
         <div className="flex items-baseline justify-between gap-3">
@@ -196,18 +204,28 @@ export function LessonSession({
 
         <section className="rounded-2xl border border-border bg-surface p-4 flex flex-col gap-4">
           <p className="text-sm text-foreground-muted">
-            Each lesson is {Math.min(LESSON_SIZE, quiz.items.length)} {noun}s: about a third new, the rest review - the ones
-            you know least, or haven&apos;t seen in a while, come first. New {noun}s are shown before they&apos;re asked. Miss
-            one and it comes back twice more; getting it right first try raises its score the most.
+            A lesson mixes new {noun}s with review - about a third new, the rest the ones you know least or haven&apos;t seen in
+            a while. New {noun}s are shown before they&apos;re asked. Miss one and it comes back twice more.
+            {deck === "words" && poolWords.length > 0 && " New words come from the suggestions list and are added to your list as Learned."}
           </p>
           <div className="flex flex-wrap gap-2">
-            {(["new", "weak", "learning", "strong"] as const).map((band) => (
+            {(["new", "review", "reviewed"] as const).map((band) => (
               <span key={band} className={clsx("text-xs px-2.5 py-1 rounded-full border", BAND_STYLE[band])}>
                 {counts[band]} {BAND_LABEL[band]}
               </span>
             ))}
           </div>
-          {deck === "words" && <AnswerModeToggle languageCode={languageCode} value={answerMode} onChange={setAnswerMode} />}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[11px] uppercase tracking-wide text-foreground-muted">Length</span>
+              <PillToggle
+                options={LESSON_SIZES.map((n) => ({ value: n as number, label: `${n} ${noun}s` }))}
+                value={size}
+                onChange={setSize}
+              />
+            </div>
+            {deck === "words" && <AnswerModeToggle languageCode={languageCode} value={answerMode} onChange={setAnswerMode} />}
+          </div>
           <button
             type="button"
             onClick={start}
@@ -224,7 +242,7 @@ export function LessonSession({
 
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium">Progress</h2>
-          <MasteryGrid quiz={quiz} stats={stats} />
+          <MasteryGrid quiz={gridQuiz} stats={stats} />
         </section>
       </div>
     );
@@ -232,15 +250,15 @@ export function LessonSession({
 
   // ---- Results ---------------------------------------------------------------------------------
   if (phase === "results") {
-    const beforeById = new Map(statsBefore.map((s) => [s.itemId, s]));
     const afterById = new Map(stats.map((s) => [s.itemId, s]));
     const rows = Object.entries(attempts).map(([itemId, list]) => ({
       item: quiz.itemById(itemId),
       outcome: outcomeOf(list.map((a) => a.correct)),
-      before: Math.round(effectiveScore(beforeById.get(itemId), now)),
-      after: saveState === "saved" ? Math.round(effectiveScore(afterById.get(itemId), now)) : null,
+      // Where the item stands now, once saved - as a label, never as a number.
+      band: saveState === "saved" ? bandOf(afterById.get(idMap[itemId] ?? itemId), now) : null,
       isNew: newIds.includes(itemId),
     }));
+    const addedToList = Object.keys(idMap).length;
     const firstTry = rows.filter((r) => r.outcome === "first").length;
     return (
       <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-6">
@@ -253,7 +271,7 @@ export function LessonSession({
           <span className="text-sm text-foreground-muted">right first try</span>
           <span className="text-xs text-foreground-muted min-h-4" aria-live="polite">
             {saveState === "saving" && "Saving your progress..."}
-            {saveState === "saved" && "Progress saved."}
+            {saveState === "saved" && (addedToList > 0 ? `Progress saved. ${addedToList} new word${addedToList === 1 ? "" : "s"} added to your list under Learned.` : "Progress saved.")}
             {saveState === "error" && (
               <>
                 Couldn&apos;t save your progress.{" "}
@@ -280,7 +298,7 @@ export function LessonSession({
         </div>
 
         <ul className="flex flex-col gap-2">
-          {rows.map(({ item: rowItem, outcome, before, after, isNew }) =>
+          {rows.map(({ item: rowItem, outcome, band, isNew }) =>
             rowItem ? (
               <li key={rowItem.id} className="rounded-xl border border-border bg-surface p-3 flex items-center gap-3">
                 <span className={clsx("native-text text-center", quiz.answerSize === "word" ? "text-xl" : "text-3xl w-12")}>{rowItem.answer}</span>
@@ -291,13 +309,9 @@ export function LessonSession({
                   </div>
                   <div className="text-xs text-foreground-muted truncate">{rowItem.variants[0]?.text.replace(/\*\*/g, "")}</div>
                 </div>
-                <span className="text-xs tabular-nums text-foreground-muted text-right">
-                  {after === null ? `score ${before}` : (
-                    <>
-                      {before} → <span className="text-foreground font-medium">{after}</span>
-                    </>
-                  )}
-                </span>
+                {band && (
+                  <span className={clsx("text-[11px] px-2 py-0.5 rounded-full border shrink-0", BAND_STYLE[band])}>{BAND_LABEL[band]}</span>
+                )}
               </li>
             ) : null,
           )}

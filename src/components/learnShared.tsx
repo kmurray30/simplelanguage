@@ -5,7 +5,7 @@
 
 import { useState } from "react";
 import { clsx } from "clsx";
-import { BAND_LABEL, bandOf, effectiveScore, type Band } from "@/lib/mastery";
+import { BAND_LABEL, bandOf, type Band } from "@/lib/mastery";
 import type { ItemStatDTO, RunDTO } from "@/lib/quizSelection";
 import type { QuizDefinition } from "@/lib/quizTypes";
 import { NATIVE_SCRIPT_NAME, ROMANIZATION_NAME, supportsRomanized, type AnswerMode } from "@/lib/wordsQuiz";
@@ -73,9 +73,8 @@ export function AnswerModeToggle({
 
 export const BAND_STYLE: Record<Band, string> = {
   new: "border-border bg-surface text-foreground-muted",
-  weak: "border-danger/40 bg-danger-soft text-foreground",
-  learning: "border-accent/40 bg-accent-soft text-foreground",
-  strong: "border-success/40 bg-success-soft text-foreground",
+  review: "border-accent/40 bg-accent-soft text-foreground",
+  reviewed: "border-success/40 bg-success-soft text-foreground",
 };
 
 // Every item as a tile, colored by its current (decayed) mastery score.
@@ -97,9 +96,7 @@ export function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: Item
                 return (
                   <span
                     key={item.id}
-                    title={`${item.answer} · ${
-                      stat?.scoreAt ? `score ${Math.round(effectiveScore(stat, now))}, ${stat.correctCount}/${stat.seen} right` : "not learned yet"
-                    }`}
+                    title={`${item.answer} · ${BAND_LABEL[band]}`}
                     className={clsx(
                       "native-text min-w-9 h-9 px-1.5 rounded-lg border flex items-center justify-center",
                       quiz.answerSize === "word" ? "text-sm" : "text-lg",
@@ -114,7 +111,7 @@ export function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: Item
         </div>
       ))}
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-foreground-muted">
-        {(["new", "weak", "learning", "strong"] as const).map((band) => (
+        {(["new", "review", "reviewed"] as const).map((band) => (
           <span key={band} className="flex items-center gap-1">
             <span className={clsx("w-3 h-3 rounded border", BAND_STYLE[band])} />
             {BAND_LABEL[band]}
@@ -122,7 +119,7 @@ export function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: Item
         ))}
       </div>
       <p className="text-[11px] text-foreground-muted">
-        Scores rise with right answers - most for getting it first try - and fade over time, so review keeps them up.
+        Right answers - most of all first try - move things toward reviewed, and they slip back to needs review as time passes.
       </p>
     </div>
   );

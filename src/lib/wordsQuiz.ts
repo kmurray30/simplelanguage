@@ -31,6 +31,16 @@ export function supportsRomanized(languageCode: LanguageCode): boolean {
   return LANGUAGES[languageCode].needsRomanization;
 }
 
+// Words from the suggestion pool that a lesson introduces are quizzed under `pool:<id>` until the
+// lesson saves them to the user's list.
+export const POOL_PREFIX = "pool:";
+
+// Chinese, Japanese and Korean words are answered in the roman alphabet unless native is asked for.
+export function defaultAnswerMode(languageCode: LanguageCode, requested?: string): AnswerMode {
+  if (!supportsRomanized(languageCode)) return "native";
+  return requested === "native" ? "native" : "romanized";
+}
+
 const CATEGORY_LABEL = new Map<string, string>(CATEGORIES.map((c) => [c.value, c.label]));
 
 // --- Normalizing ---------------------------------------------------------------------------------
@@ -165,7 +175,11 @@ export function makeWordsQuiz(words: readonly QuizWord[], languageCode: Language
       if (!w) return null;
       return romanized ? w.nativeText : w.romanization || null;
     },
-    audioSrc: (item) => `/api/words/${item.id}/audio`,
+    // Pool words a lesson is about to teach don't have a list word yet; they use the pool word's clip.
+    audioSrc: (item) =>
+      item.id.startsWith(POOL_PREFIX)
+        ? `/api/suggestions/${item.id.slice(POOL_PREFIX.length)}/audio`
+        : `/api/words/${item.id}/audio`,
     answerSize: "word",
   };
 }

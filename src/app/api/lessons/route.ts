@@ -6,6 +6,10 @@ import { outcomeOf } from "@/lib/lessonPlan";
 import { loadQuiz } from "@/lib/quizServer";
 import { loadRuns, loadStats, saveResults, type ItemResult } from "@/lib/quizStore";
 import { resolveLearner } from "@/lib/learnerServer";
+import { prisma } from "@/lib/prisma";
+import { triggerAudioGeneration } from "@/lib/audioCache";
+import { triggerBreakdownGeneration } from "@/lib/wordBreakdown";
+import { POOL_PREFIX } from "@/lib/wordsQuiz";
 
 const LessonSchema = z.object({
   deck: z.enum(QUIZ_TYPES),
@@ -34,7 +38,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
   const { deck, lang, answerMode, results: submitted } = parsed.data;
-  const quiz = await loadQuiz(deck, lang, answerMode);
+  // New words a lesson introduces arrive as `pool:<id>`; they're graded as such, then saved to the list.
+  const quiz = await loadQuiz(deck, lang, answerMode, submitted.map((r) => r.itemId));
 
   const results: ItemResult[] = [];
   for (const r of submitted) {
@@ -46,17 +51,56 @@ export async function POST(req: NextRequest) {
     results.push({ itemId: r.itemId, outcome: outcomeOf(attempts.map((a) => a.correct)), attempts });
   }
 
+  // Progress is stored against the real word, so a pool word the lesson taught is added to the list
+  // first (tagged "lesson", which is what the List page's Learned filter shows).
+  const idMap = await saveLearnedWords(lang, results.map((r) => r.itemId));
+  const saved = results.map((r) => ({ ...r, itemId: idMap[r.itemId] ?? r.itemId }));
+
   const learner = await resolveLearner(req);
-  await saveResults({ learnerId: learner.learnerId, statsKey: quiz.statsKey, languageCode: quiz.languageCode, mode: "lesson", results });
+  await saveResults({ learnerId: learner.learnerId, statsKey: quiz.statsKey, languageCode: quiz.languageCode, mode: "lesson", results: saved });
 
   return learner.remember(
     NextResponse.json(
       {
         outcomes: Object.fromEntries(results.map((r) => [r.itemId, r.outcome])),
+        idMap,
         stats: await loadStats(learner.learnerId, quiz.statsKey),
         runs: await loadRuns(learner.learnerId, quiz.statsKey),
       },
       { status: 201 },
     ),
   );
+}
+
+// Creates a list word for each pool word a lesson taught (reusing one that's already there) and
+// returns `pool:<id>` -> the list word's id.
+async function saveLearnedWords(languageCode: z.infer<typeof LanguageCodeSchema>, itemIds: string[]): Promise<Record<string, string>> {
+  const poolIds = itemIds.filter((id) => id.startsWith(POOL_PREFIX)).map((id) => id.slice(POOL_PREFIX.length));
+  if (poolIds.length === 0) return {};
+  const rows = await prisma.suggestionPoolWord.findMany({ where: { languageCode, id: { in: poolIds } } });
+  const idMap: Record<string, string> = {};
+  for (const row of rows) {
+    const existing = await prisma.word.findFirst({ where: { languageCode, nativeText: row.nativeText } });
+    if (existing) {
+      idMap[`${POOL_PREFIX}${row.id}`] = existing.id;
+      continue;
+    }
+    const word = await prisma.word.create({
+      data: {
+        languageCode,
+        nativeText: row.nativeText,
+        romanization: row.romanization,
+        phonetic: row.phonetic,
+        englishGloss: row.englishGloss,
+        usageNote: row.usageNote,
+        categories: row.categories,
+        source: "lesson",
+        audioClipId: row.audioClipId,
+      },
+    });
+    if (!row.audioClipId) triggerAudioGeneration(word);
+    triggerBreakdownGeneration(word);
+    idMap[`${POOL_PREFIX}${row.id}`] = word.id;
+  }
+  return idMap;
 }

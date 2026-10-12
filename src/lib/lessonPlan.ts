@@ -5,7 +5,8 @@ import { effectiveScore } from "./mastery";
 import type { ItemStatDTO, Pickable } from "./quizSelection";
 
 export const LESSON_SIZE = 12;
-// Roughly a third of each lesson is new material, the rest review.
+export const LESSON_SIZES = [6, 12, 18] as const;
+// A third of each lesson is new material (2, 4 or 6 of 6, 12 or 18), the rest review.
 export const NEW_SHARE = 1 / 3;
 // A first-shot miss comes back twice more, this many cards apart.
 export const REPEAT_GAP = 3;

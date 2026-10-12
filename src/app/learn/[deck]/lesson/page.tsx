@@ -5,13 +5,14 @@ export const dynamic = "force-dynamic";
 
 export default async function LessonPage({ params, searchParams }: PageProps<"/learn/[deck]/lesson">) {
   const [{ deck }, search] = await Promise.all([params, searchParams]);
-  const s = await loadSession(deck, search);
+  const s = await loadSession(deck, search, { withPool: true });
   return (
     <LessonSession
       key={`${s.deck}-${s.languageCode}`}
       deck={s.deck}
       languageCode={s.languageCode}
       words={s.words}
+      poolWords={s.poolWords}
       initialAnswerMode={s.answerMode}
       initialStats={s.stats}
       initialRuns={s.runs}

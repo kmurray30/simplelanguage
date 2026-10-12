@@ -40,21 +40,20 @@ export function applyOutcome(state: ScoreState | undefined, outcome: Outcome, no
   return { score: Math.min(100, Math.max(0, current + BOOST[outcome])), scoreAt: new Date(now) };
 }
 
-export type Band = "new" | "weak" | "learning" | "strong";
+// What the user sees: three states, never the number. Unlearned = never answered; reviewed = the
+// score is holding up (it takes a good answer in a lesson, then another after it has faded a bit);
+// needs review = learned once but the score is low or has decayed.
+export type Band = "new" | "review" | "reviewed";
+
+export const REVIEWED_AT = 60;
 
 export const BAND_LABEL: Record<Band, string> = {
-  new: "not learned yet",
-  weak: "weak (under 30)",
-  learning: "learning (30-74)",
-  strong: "strong (75+)",
+  new: "unlearned",
+  review: "needs review",
+  reviewed: "reviewed",
 };
 
 export function bandOf(state: ScoreState | undefined, now: number): Band {
   if (!state || state.scoreAt === null) return "new";
-  const score = effectiveScore(state, now);
-  // A first-try answer on a new item scores 40, so it reads as "learning" for a couple of days
-  // before fading to "weak" and asking for review; two first-try answers make it "strong".
-  if (score >= 75) return "strong";
-  if (score >= 30) return "learning";
-  return "weak";
+  return effectiveScore(state, now) >= REVIEWED_AT ? "reviewed" : "review";
 }

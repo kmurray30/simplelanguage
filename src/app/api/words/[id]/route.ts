@@ -23,6 +23,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       categories: true,
       breakdown: true,
       starred: true,
+      source: true,
       audioClipId: true,
       createdAt: true,
       updatedAt: true,
