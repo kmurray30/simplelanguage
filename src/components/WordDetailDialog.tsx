@@ -45,9 +45,11 @@ function WordDetailBody({ summary, onClose }: { summary: Word; onClose: () => vo
               <span className="text-base text-foreground-muted">{word.romanization}</span>
             )}
           </div>
-          <span className="text-xs italic text-foreground-muted">
-            &ldquo;{word.phonetic}&rdquo;
-          </span>
+          {word.phonetic && (
+            <span className="text-xs italic text-foreground-muted">
+              &ldquo;{word.phonetic}&rdquo;
+            </span>
+          )}
         </div>
         <AudioButton src={`/api/words/${word.id}/audio`} size="md" />
       </div>

@@ -7,10 +7,18 @@
 import { effectiveScore } from "./mastery";
 import type { ItemStatDTO, Pickable } from "./quizSelection";
 
-export const LESSON_SIZE = 12;
-export const LESSON_SIZES = [6, 12, 18] as const;
-// A third of each lesson is new material (2, 4 or 6 of 6, 12 or 18), the rest review.
-export const NEW_SHARE = 1 / 3;
+// A lesson has a budget: a new item costs NEW_COST, a review item REVIEW_COST. Left alone a lesson is
+// a quarter new-item budget and half review - 2 new + 4 review for Short, 4 + 8, 6 + 12 - and when
+// one side runs out the other fills the budget at the same exchange rate (2 reviews per new item).
+export const LESSON_LENGTHS = [
+  { value: "short", label: "Short", budget: 8 },
+  { value: "medium", label: "Medium", budget: 16 },
+  { value: "long", label: "Long", budget: 24 },
+] as const;
+export type LessonLength = (typeof LESSON_LENGTHS)[number]["value"];
+export const DEFAULT_LENGTH: LessonLength = "medium";
+export const NEW_COST = 2;
+export const REVIEW_COST = 1;
 // How many consecutive right answers lock an item in for the lesson.
 export const CORRECT_IN_A_ROW = 2;
 // An item that comes back is put this many cards later (or at the end, if the lesson is nearly done).
@@ -33,12 +41,14 @@ function shuffle<T>(list: readonly T[], rand: () => number): T[] {
   return out;
 }
 
-// How many of a lesson's items are new and how many are review, given what's available. Early on
-// there's little to review (more new); once nothing new is left it's all review.
-export function planCounts({ total, newAvailable, reviewAvailable }: { total: number; newAvailable: number; reviewAvailable: number }) {
-  const wantNew = Math.min(newAvailable, Math.round(total * NEW_SHARE));
-  const reviewCount = Math.min(reviewAvailable, total - wantNew);
-  const newCount = Math.min(newAvailable, total - reviewCount);
+// How many of a lesson's items are new and how many are review, given the budget and what's
+// available. Normally B/4 new and B/2 review; whatever one side can't fill, the other takes up.
+export function planCounts({ budget, newAvailable, reviewAvailable }: { budget: number; newAvailable: number; reviewAvailable: number }) {
+  let newCount = Math.min(newAvailable, Math.floor(budget / (2 * NEW_COST)));
+  let reviewCount = Math.min(reviewAvailable, Math.floor(budget / (2 * REVIEW_COST)));
+  const left = () => budget - newCount * NEW_COST - reviewCount * REVIEW_COST;
+  newCount += Math.min(newAvailable - newCount, Math.floor(left() / NEW_COST));
+  reviewCount += Math.min(reviewAvailable - reviewCount, Math.floor(left() / REVIEW_COST));
   return { newCount, reviewCount };
 }
 
@@ -47,14 +57,14 @@ export function planLesson({
   stats,
   now = Date.now(),
   rand = Math.random,
-  size = LESSON_SIZE,
+  budget = 16,
   isNew,
 }: {
   items: readonly Pickable[]; // in curriculum order
   stats: readonly ItemStatDTO[];
   now?: number;
   rand?: () => number;
-  size?: number;
+  budget?: number;
   // Which items count as new. By default, ones never answered (letters, syllables); for words,
   // only suggestion-pool words - anything on your own list counts as needing review from the start.
   isNew?: (item: Pickable) => boolean;
@@ -70,8 +80,7 @@ export function planLesson({
     .sort((a, b) => a.score - b.score || a.order - b.order)
     .map((s) => s.item);
 
-  const total = Math.min(size, items.length);
-  const { newCount, reviewCount } = planCounts({ total, newAvailable: newPool.length, reviewAvailable: reviewPool.length });
+  const { newCount, reviewCount } = planCounts({ budget, newAvailable: newPool.length, reviewAvailable: reviewPool.length });
 
   const fresh = newPool.slice(0, newCount);
   const review = shuffle(reviewPool.slice(0, reviewCount), rand);
@@ -128,23 +137,32 @@ export function scheduleNext(
   return out;
 }
 
-// The streak after an answer: right adds one, wrong starts over.
-export function nextStreak(streak: number, correct: boolean): number {
-  return correct ? streak + 1 : 0;
+// How an answer went: "close" is one letter off - not a miss, but it doesn't count as right either.
+export type AttemptResult = "correct" | "close" | "wrong";
+
+// The streak after an answer: right adds one, wrong starts over, close leaves it be.
+export function nextStreak(streak: number, result: AttemptResult): number {
+  if (result === "close") return streak;
+  return result === "correct" ? streak + 1 : 0;
 }
 
-// How many attempts at an item were wrong.
-export function wrongCount(results: readonly boolean[]): number {
-  return results.filter((ok) => !ok).length;
+// How many attempts at an item were wrong (close ones aren't).
+export function wrongCount(results: readonly AttemptResult[]): number {
+  return results.filter((r) => r === "wrong").length;
 }
 
 // This lesson's score for an item, out of 5: every wrong answer costs one point, never below 1.
-export function lessonScore(results: readonly boolean[]): number {
+export function lessonScore(results: readonly AttemptResult[]): number {
   return Math.max(1, 5 - wrongCount(results));
 }
 
-// What the mastery score hears about an item: 0 wrong = first try, then 1, 2, or more wrong answers.
-export function outcomeOf(results: readonly boolean[]): "first" | "second" | "third" | "struggled" {
+// 1 star for 3 or less, 2 for 4, 3 for a clean 5.
+export function starsFor(score: number): 1 | 2 | 3 {
+  return score >= 5 ? 3 : score >= 4 ? 2 : 1;
+}
+
+// What the proficiency score hears about an item: 0 wrong = first try, then 1, 2, or more wrong answers.
+export function outcomeOf(results: readonly AttemptResult[]): "first" | "second" | "third" | "struggled" {
   const wrong = wrongCount(results);
   if (wrong === 0) return "first";
   if (wrong === 1) return "second";

@@ -34,6 +34,8 @@ export type Grade =
   // `note` explains a correct-but-not-exact answer (missing accent, toneless pinyin, a same-sound spelling).
   | { status: "correct"; note?: string }
   | { status: "wrong"; given: string; message: string }
+  // One letter off (words only): shown in yellow; a lesson neither counts it right nor deducts for it.
+  | { status: "close"; given: string; message: string }
   | { status: "invalid"; message: string };
 
 export type QuizDefinition = {

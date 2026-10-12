@@ -121,8 +121,9 @@ export function QuizSession({
     const correct = grade.status === "correct";
     setRevealed({
       correct,
-      given: grade.status === "wrong" ? grade.given : input.trim(),
-      message: grade.status === "wrong" ? grade.message : null,
+      close: grade.status === "close",
+      given: grade.status === "wrong" || grade.status === "close" ? grade.given : input.trim(),
+      message: grade.status === "wrong" || grade.status === "close" ? grade.message : null,
       note: grade.status === "correct" ? grade.note : null,
     });
     setAnswers([...answers, { itemId: item.id, variantIndex: pick.variantIndex, given: input.trim(), correct }]);
@@ -150,8 +151,9 @@ export function QuizSession({
     const grade = quiz.grade(qItem, a.variantIndex, a.given);
     return {
       correct: a.correct,
-      given: grade.status === "wrong" ? grade.given : a.given,
-      message: grade.status === "wrong" ? grade.message : null,
+      close: grade.status === "close",
+      given: grade.status === "wrong" || grade.status === "close" ? grade.given : a.given,
+      message: grade.status === "wrong" || grade.status === "close" ? grade.message : null,
       note: grade.status === "correct" ? grade.note : null,
     };
   }
@@ -264,7 +266,7 @@ export function QuizSession({
 
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-medium">{noun[0].toUpperCase() + noun.slice(1)} by {noun}</h2>
-          <MasteryGrid quiz={quiz} stats={stats} />
+          <MasteryGrid quiz={quiz} stats={stats} words={words} />
         </section>
       </div>
     );
@@ -401,7 +403,7 @@ export function QuizSession({
       {reviewing !== null && reviewPick && reviewResult ? (
         <>
           <p className="text-xs text-foreground-muted text-center">Looking back at an answered card - answers are locked.</p>
-          <div className={clsx("rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center", verdictColors(reviewResult.correct))}>
+          <div className={clsx("rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center", verdictColors(reviewResult))}>
             <VerdictContent quiz={quiz} pick={reviewPick} entry={reviewResult} />
           </div>
           <div className="flex items-center justify-center gap-3">
@@ -452,7 +454,7 @@ export function QuizSession({
               style={{ transform: "rotateY(180deg)" }}
               className={clsx(
                 "[grid-area:1/1] [backface-visibility:hidden] rounded-3xl border shadow-sm p-6 flex flex-col items-center gap-3 text-center",
-                verdictColors(revealed?.correct),
+                verdictColors(revealed),
               )}
             >
               {revealed && <VerdictContent quiz={quiz} pick={pick} entry={revealed} />}

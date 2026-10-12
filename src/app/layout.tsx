@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Inter, Noto_Sans_SC, Noto_Sans_JP, Noto_Sans_KR } from "next/font/google";
 import { NavBar } from "@/components/NavBar";
 import { LANGUAGE_CODES, DEFAULT_LANGUAGE } from "@/lib/languages";
+import { SITE_NAME } from "@/lib/site";
 import "./globals.css";
 
 const inter = Inter({
@@ -35,7 +36,7 @@ const notoSansKR = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-  title: "Vocab",
+  title: SITE_NAME,
   description: "A personal vocabulary flashcard app.",
 };
 

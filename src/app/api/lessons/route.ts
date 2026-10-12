@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { QUIZ_TYPES } from "@/lib/decks";
 import { LanguageCodeSchema } from "@/lib/schemas";
-import { outcomeOf } from "@/lib/lessonPlan";
+import { outcomeOf, type AttemptResult } from "@/lib/lessonPlan";
 import { loadQuiz } from "@/lib/quizServer";
 import { loadRuns, loadStats, saveResults, type ItemResult } from "@/lib/quizStore";
 import { resolveLearner } from "@/lib/learnerServer";
@@ -47,8 +47,14 @@ export async function POST(req: NextRequest) {
     if (!item || r.attempts.some((a) => a.variantIndex >= item.variants.length)) {
       return NextResponse.json({ error: `Unknown question ${r.itemId}` }, { status: 400 });
     }
-    const attempts = r.attempts.map((a) => ({ ...a, correct: quiz.grade(item, a.variantIndex, a.given).status === "correct" }));
-    results.push({ itemId: r.itemId, outcome: outcomeOf(attempts.map((a) => a.correct)), attempts });
+    const graded = r.attempts.map((a) => {
+      const status = quiz.grade(item, a.variantIndex, a.given).status;
+      // Blank or unparseable answers were skips in the lesson, so they count as misses.
+      const result: AttemptResult = status === "correct" ? "correct" : status === "close" ? "close" : "wrong";
+      return { ...a, result };
+    });
+    const attempts = graded.map((a) => ({ ...a, correct: a.result === "correct" }));
+    results.push({ itemId: r.itemId, outcome: outcomeOf(graded.map((a) => a.result)), attempts });
   }
 
   // Progress is stored against the real word, so a pool word the lesson taught is added to the list

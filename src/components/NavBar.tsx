@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clsx } from "clsx";
+import { SITE_NAME } from "@/lib/site";
 import { LANGUAGES, LANGUAGE_CODES, DEFAULT_LANGUAGE, isLanguageCode, type LanguageCode } from "@/lib/languages";
 
 // Flashcards, quizzes and lessons all live under Learn, so the tab stays highlighted on /flashcards too.
@@ -112,8 +113,8 @@ export function NavBar() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <LanguageMenu current={languageCode} onSelect={switchLanguage} />
-          <Link href={`/?lang=${languageCode}`} className="text-sm text-foreground-muted shrink-0">
-            Vocab
+          <Link href={`/?lang=${languageCode}`} className="text-base font-semibold tracking-tight shrink-0">
+            {SITE_NAME}
           </Link>
         </div>
 

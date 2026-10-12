@@ -11,10 +11,15 @@ import { QuizKeypad, hasKeypad } from "./QuizKeypad";
 import type { QuizDefinition, QuizItem } from "@/lib/quizTypes";
 import type { Pick } from "@/lib/quizSelection";
 
-export type Revealed = { correct: boolean; given: string; message: string | null; note?: string | null };
+// `close` = one letter off (yellow): not correct, but not a plain miss either.
+export type Revealed = { correct: boolean; close?: boolean; given: string; message: string | null; note?: string | null };
 
-export const verdictColors = (correct: boolean | undefined) =>
-  correct ? "border-success/50 bg-success-soft" : "border-danger/50 bg-danger-soft";
+export const verdictColors = (revealed: { correct: boolean; close?: boolean } | null | undefined) =>
+  revealed?.correct
+    ? "border-success/50 bg-success-soft"
+    : revealed?.close
+      ? "border-warning/50 bg-warning-soft"
+      : "border-danger/50 bg-danger-soft";
 
 function AnswerBlock({ quiz, item }: { quiz: QuizDefinition; item: QuizItem }) {
   const audio = quiz.audioSrc(item);
@@ -67,13 +72,13 @@ export function VerdictContent({ quiz, pick, entry }: { quiz: QuizDefinition; pi
         <span
           className={clsx(
             "w-9 h-9 rounded-full flex items-center justify-center text-xl font-semibold text-white",
-            entry.correct ? "bg-success" : "bg-danger",
+            entry.correct ? "bg-success" : entry.close ? "bg-warning" : "bg-danger",
           )}
           aria-hidden
         >
-          {entry.correct ? "✓" : "✗"}
+          {entry.correct ? "✓" : entry.close ? "~" : "✗"}
         </span>
-        <span className="text-lg font-medium">{entry.correct ? "Correct" : "Not quite"}</span>
+        <span className="text-lg font-medium">{entry.correct ? "Correct" : entry.close ? "Almost" : "Not quite"}</span>
       </div>
 
       <AnswerBlock quiz={quiz} item={item} />
@@ -104,7 +109,6 @@ export function TeachContent({ quiz, pick }: { quiz: QuizDefinition; pick: Pick 
   if (!item) return null;
   return (
     <>
-      <span className="text-[11px] uppercase tracking-wide text-foreground-muted">New</span>
       <CueLine quiz={quiz} item={item} variantIndex={pick.variantIndex} />
       <AnswerBlock quiz={quiz} item={item} />
       <ItemNote item={item} variantIndex={pick.variantIndex} />
@@ -149,7 +153,9 @@ export function QuestionForm({
       inert={inert}
       className={clsx("rounded-3xl border border-border bg-surface shadow-sm p-6 flex flex-col items-center gap-4", className)}
     >
-      <p className="text-sm text-foreground-muted text-center">{variant.prompt ?? quiz.defaultPrompt}</p>
+      {(variant.prompt ?? quiz.defaultPrompt) && (
+        <p className="text-sm text-foreground-muted text-center">{variant.prompt ?? quiz.defaultPrompt}</p>
+      )}
       <div className="flex flex-col items-center gap-2 py-2">
         <span className={clsx("font-normal text-foreground-muted text-center", isWord ? "text-3xl text-foreground" : "text-4xl")}>
           <Emphasis text={variant.text} highlight />

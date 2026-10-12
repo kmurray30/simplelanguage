@@ -3,13 +3,16 @@
 // Widgets shared by the Quiz and Lesson pages: pill toggles, the answer-mode switch for words, the
 // mastery grid and the score history.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { clsx } from "clsx";
-import { BAND_LABEL, bandOf, type Band } from "@/lib/mastery";
+import { Modal } from "./Modal";
+import { TeachContent } from "./QuizCards";
+import { WordDetailDialog } from "./WordDetailDialog";
+import { BAND_LABEL, bandOf, effectiveScore, type Band } from "@/lib/mastery";
 import type { ItemStatDTO, RunDTO } from "@/lib/quizSelection";
-import type { QuizDefinition } from "@/lib/quizTypes";
-import { NATIVE_SCRIPT_NAME, ROMANIZATION_NAME, supportsRomanized, type AnswerMode } from "@/lib/wordsQuiz";
-import type { LanguageCode } from "@/types";
+import type { QuizDefinition, QuizItem } from "@/lib/quizTypes";
+import { NATIVE_SCRIPT_NAME, ROMANIZATION_NAME, supportsRomanized, type AnswerMode, type QuizWord } from "@/lib/wordsQuiz";
+import type { LanguageCode, Word } from "@/types";
 
 export function PillToggle<T extends string | number>({
   options,
@@ -77,11 +80,71 @@ export const BAND_STYLE: Record<Band, string> = {
   reviewed: "border-success/40 bg-success-soft text-foreground",
 };
 
-// Every item as a tile, colored by its current (decayed) mastery score.
-export function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: ItemStatDTO[] }) {
+const POPOVER_WIDTH = 224;
+
+type Popover = { itemId: string; left: number; top: number | null; bottom: number | null };
+
+// A list word as the detail dialog wants it; the dialog fetches the rest (breakdown...) when it opens.
+function wordSummary(w: QuizWord, languageCode: LanguageCode): Word {
+  return {
+    ...w,
+    languageCode,
+    phonetic: "",
+    breakdown: null,
+    starred: false,
+    source: "added",
+    hasAudio: true,
+    createdAt: "",
+    updatedAt: "",
+  };
+}
+
+// Every item as a tile, colored by its current (decayed) proficiency. Tapping a tile opens a small
+// popover (the item, its meaning, its proficiency) with a button for the full card.
+export function MasteryGrid({ quiz, stats, words }: { quiz: QuizDefinition; stats: ItemStatDTO[]; words?: QuizWord[] }) {
   // One clock per mount, so the render stays pure.
   const [now] = useState(() => Date.now());
+  const [popover, setPopover] = useState<Popover | null>(null);
+  const [card, setCard] = useState<string | null>(null);
   const byId = new Map(stats.map((s) => [s.itemId, s]));
+
+  useEffect(() => {
+    if (!popover) return;
+    const close = () => setPopover(null);
+    function onPointerDown(e: PointerEvent) {
+      if (!(e.target as Element).closest("[data-grid-popover], [data-grid-tile]")) close();
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [popover]);
+
+  function open(item: QuizItem, target: HTMLElement) {
+    if (popover?.itemId === item.id) {
+      setPopover(null);
+      return;
+    }
+    const rect = target.getBoundingClientRect();
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - POPOVER_WIDTH - 8));
+    const below = rect.bottom + 8 + 130 < window.innerHeight;
+    setPopover({ itemId: item.id, left, top: below ? rect.bottom + 6 : null, bottom: below ? null : window.innerHeight - rect.top + 6 });
+  }
+
+  const popItem = popover ? quiz.itemById(popover.itemId) : undefined;
+  const popStat = popItem ? byId.get(popItem.id) : undefined;
+  const cardItem = card ? quiz.itemById(card) : undefined;
+  const cardWord = card && quiz.deck === "words" ? words?.find((w) => w.id === card) : undefined;
+
   return (
     <div className="flex flex-col gap-3">
       {quiz.groups.map((group) => (
@@ -91,20 +154,24 @@ export function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: Item
             {quiz.items
               .filter((item) => item.group === group)
               .map((item) => {
-                const stat = byId.get(item.id);
-                const band = bandOf(stat, now, quiz.deck === "words");
+                const band = bandOf(byId.get(item.id), now, quiz.deck === "words");
                 return (
-                  <span
+                  <button
+                    type="button"
                     key={item.id}
-                    title={`${item.answer} · ${BAND_LABEL[band]}`}
+                    data-grid-tile
+                    onClick={(e) => open(item, e.currentTarget)}
+                    aria-label={`${item.answer}: ${BAND_LABEL[band]}`}
+                    aria-expanded={popover?.itemId === item.id}
                     className={clsx(
-                      "native-text min-w-9 h-9 px-1.5 rounded-lg border flex items-center justify-center",
+                      "native-text min-w-9 h-9 px-1.5 rounded-lg border flex items-center justify-center hover:brightness-95 transition",
                       quiz.answerSize === "word" ? "text-sm" : "text-lg",
                       BAND_STYLE[band],
+                      popover?.itemId === item.id && "ring-2 ring-accent",
                     )}
                   >
                     {item.answer}
-                  </span>
+                  </button>
                 );
               })}
           </div>
@@ -118,9 +185,55 @@ export function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: Item
           </span>
         ))}
       </div>
-      <p className="text-[11px] text-foreground-muted">
-        Right answers - most of all first try - move things toward reviewed, and they slip back to needs review as time passes.
-      </p>
+
+      {popover && popItem && (
+        <div
+          data-grid-popover
+          role="dialog"
+          aria-label={popItem.answer}
+          style={{ position: "fixed", left: popover.left, top: popover.top ?? undefined, bottom: popover.bottom ?? undefined, width: POPOVER_WIDTH }}
+          className="z-40 rounded-xl border border-border bg-surface shadow-lg p-3 flex flex-col gap-1.5 animate-fade-in-up"
+        >
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="native-text text-xl truncate">{popItem.answer}</span>
+            <span className="text-xs tabular-nums text-foreground-muted shrink-0">
+              {Math.round(effectiveScore(popStat, now))}/100
+            </span>
+          </div>
+          <span className="text-sm text-foreground-muted truncate">
+            {quiz.deck === "words" ? popItem.variants[0]?.text : popItem.code}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setCard(popItem.id);
+              setPopover(null);
+            }}
+            className="self-start mt-0.5 text-xs underline text-foreground-muted hover:text-foreground"
+          >
+            Full card
+          </button>
+        </div>
+      )}
+
+      {cardWord ? (
+        <WordDetailDialog word={wordSummary(cardWord, quiz.languageCode)} onClose={() => setCard(null)} />
+      ) : (
+        <Modal open={!!cardItem} onClose={() => setCard(null)}>
+          {cardItem && (
+            <div className="p-6 flex flex-col items-center gap-3 text-center">
+              <TeachContent quiz={quiz} pick={{ itemId: cardItem.id, variantIndex: 0 }} />
+              <button
+                type="button"
+                onClick={() => setCard(null)}
+                className="mt-1 px-4 py-2 rounded-full text-sm border border-border hover:bg-surface-muted transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }

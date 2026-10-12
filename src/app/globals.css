@@ -14,6 +14,8 @@
   --success-soft: #dcefe3;
   --danger: #b3261e;
   --danger-soft: #f8e0dd;
+  --warning: #b7791f;
+  --warning-soft: #faedcc;
   --native-font: var(--font-noto-sc);
 }
 
@@ -32,6 +34,8 @@
     --success-soft: #1c3226;
     --danger: #f0847b;
     --danger-soft: #3b1f1c;
+    --warning: #e3b341;
+    --warning-soft: #3a2f12;
   }
 }
 
@@ -107,6 +111,8 @@
   --color-success-soft: var(--success-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
   --font-sans: var(--font-inter);
   --font-native: var(--native-font);
 }

@@ -132,7 +132,7 @@ export function makeWordsQuiz(words: readonly QuizWord[], languageCode: Language
     statsKey: `words-${languageCode}`,
     title: "Words quiz",
     intro: `You'll see the English meaning of one of your words. Type the ${lang.name} word${romanized ? ` in ${answerName}` : ""}.`,
-    defaultPrompt: `How do you say this in ${lang.name}?`,
+    defaultPrompt: "",
     placeholder: romanized ? "" : lang.nativeTextPlaceholder.replace(/^e\.g\. /, "").split(" or ")[0],
     inputLang: romanized ? "en" : languageCode,
     contextLabel: "",
@@ -163,11 +163,13 @@ export function makeWordsQuiz(words: readonly QuizWord[], languageCode: Language
 
       const target = romanized ? normalizeRomanized(item.answer, languageCode) : base(item.answer);
       const typed = romanized ? normalizeRomanized(input, languageCode) : base(input);
-      const close = target.length >= 4 && editDistance(typed, target) === 1;
+      // One letter missing, extra or different is "close" (yellow) rather than wrong; very short
+      // words are too easy to confuse for that to mean anything.
+      const close = target.length >= 3 && editDistance(typed, target) === 1;
       return {
-        status: "wrong",
+        status: close ? "close" : "wrong",
         given: input.trim(),
-        message: `${close ? "So close - one letter off. " : ""}"${word.englishGloss}" is ${word.nativeText}${word.romanization ? ` (${word.romanization})` : ""}.`,
+        message: `"${word.englishGloss}" is ${word.nativeText}${word.romanization ? ` (${word.romanization})` : ""}.`,
       };
     },
     answerLabel: (item) => {
