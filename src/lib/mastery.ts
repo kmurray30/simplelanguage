@@ -64,11 +64,11 @@ export function applyOutcome(state: ScoreState | undefined, outcome: Outcome, no
 }
 
 // What the user sees: three states. Unlearned = never answered; reviewed = the score is holding up
-// (it takes a good lesson, then another once the first has faded a bit); needs review = learned but
-// the score is low or has faded.
+// (one first-try lesson gets a word there, and it stays for about three days before fading back);
+// needs review = learned but the score is low or has faded.
 export type Band = "new" | "review" | "reviewed";
 
-export const REVIEWED_AT = 85;
+export const REVIEWED_AT = 70;
 
 export const BAND_LABEL: Record<Band, string> = {
   new: "unlearned",

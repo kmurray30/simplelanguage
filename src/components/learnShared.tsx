@@ -194,8 +194,20 @@ export function MasteryGrid({ quiz, stats, words }: { quiz: QuizDefinition; stat
           style={{ position: "fixed", left: popover.left, top: popover.top ?? undefined, bottom: popover.bottom ?? undefined, width: POPOVER_WIDTH }}
           className="z-40 rounded-xl border border-border bg-surface shadow-lg p-3 flex flex-col gap-1.5 animate-fade-in-up"
         >
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="native-text text-xl truncate">{popItem.answer}</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCard(popItem.id);
+                setPopover(null);
+              }}
+              title="Full card"
+              aria-label="Open the full card"
+              className="shrink-0 w-6 h-6 rounded-full border border-border text-xs italic font-serif text-foreground-muted hover:text-foreground hover:bg-surface-muted transition-colors"
+            >
+              i
+            </button>
+            <span className="native-text text-xl truncate flex-1">{popItem.answer}</span>
             <span className="text-xs tabular-nums text-foreground-muted shrink-0">
               {Math.round(effectiveScore(popStat, now))}/100
             </span>
@@ -203,16 +215,6 @@ export function MasteryGrid({ quiz, stats, words }: { quiz: QuizDefinition; stat
           <span className="text-sm text-foreground-muted truncate">
             {quiz.deck === "words" ? popItem.variants[0]?.text : popItem.code}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              setCard(popItem.id);
-              setPopover(null);
-            }}
-            className="self-start mt-0.5 text-xs underline text-foreground-muted hover:text-foreground"
-          >
-            Full card
-          </button>
         </div>
       )}
 

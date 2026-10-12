@@ -279,6 +279,8 @@ export function LessonSession({
         },
       ];
     });
+    // Best first: this lesson's score, then overall proficiency (known once the lesson is saved).
+    rows.sort((a, b) => b.lesson - a.lesson || (b.overall ?? 0) - (a.overall ?? 0));
     return (
       <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-5">
         <div className="flex items-center justify-between gap-3">
