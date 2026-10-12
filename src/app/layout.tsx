@@ -46,6 +46,16 @@ const noFoucScript = `(function() {
   try {
     var valid = ${JSON.stringify(LANGUAGE_CODES)};
     var params = new URLSearchParams(location.search);
+    // First visit since the app started remembering your language in a cookie: carry over the one
+    // this browser last used (kept in localStorage) so it reopens there, not in the default.
+    if (!params.get("lang") && document.cookie.indexOf("lang=") === -1) {
+      var saved = localStorage.getItem("lang");
+      if (saved && valid.indexOf(saved) !== -1) {
+        params.set("lang", saved);
+        location.replace(location.pathname + "?" + params.toString() + location.hash);
+        return;
+      }
+    }
     var lang = params.get("lang") || localStorage.getItem("lang") || ${JSON.stringify(DEFAULT_LANGUAGE)};
     if (valid.indexOf(lang) === -1) lang = ${JSON.stringify(DEFAULT_LANGUAGE)};
     document.documentElement.dataset.lang = lang;

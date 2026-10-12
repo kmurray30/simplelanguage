@@ -45,7 +45,7 @@ export default async function LearnPage({ searchParams }: PageProps<"/learn">) {
                   <p className="text-xs text-foreground-muted">
                     {known === 0
                       ? `${total} to learn`
-                      : `${counts.reviewed} reviewed · ${counts.review} need review · ${counts.new} unlearned`}
+                      : `${counts.reviewed} reviewed · ${counts.review} need review${deck === "words" ? "" : ` · ${counts.new} unlearned`}`}
                   </p>
                 </div>
               )}

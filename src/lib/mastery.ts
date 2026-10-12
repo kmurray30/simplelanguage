@@ -2,15 +2,16 @@
 // (lessons and quizzes alike). Correct answers push it up - first-shot answers most - and it decays
 // over time, faster for items you know less well. Pure functions; the clock is passed in.
 
-export type Outcome = "first" | "second" | "third" | "missed";
+export type Outcome = "first" | "second" | "third" | "struggled" | "missed";
 
-// How much one result moves the score. A lesson item counts as right on the viewing it was first
-// answered correctly (1st / 2nd / 3rd) or missed if all three viewings were wrong. A quiz answer is
-// a single shot: right = "first", wrong = "missed".
+// How much one result moves the score. In a lesson every item ends up right, so what matters is how
+// many wrong answers it took: none = "first", one = "second", two = "third", more = "struggled".
+// A quiz answer is a single shot: right = "first", wrong = "missed".
 export const BOOST: Record<Outcome, number> = {
   first: 40,
   second: 15,
   third: 5,
+  struggled: 0,
   missed: -20,
 };
 
@@ -53,7 +54,9 @@ export const BAND_LABEL: Record<Band, string> = {
   reviewed: "reviewed",
 };
 
-export function bandOf(state: ScoreState | undefined, now: number): Band {
-  if (!state || state.scoreAt === null) return "new";
+// `untestedIsReview`: your own words count as needing review from the moment you add them (you
+// meant to learn them), so an untested one is "needs review", never "unlearned".
+export function bandOf(state: ScoreState | undefined, now: number, untestedIsReview = false): Band {
+  if (!state || state.scoreAt === null) return untestedIsReview ? "review" : "new";
   return effectiveScore(state, now) >= REVIEWED_AT ? "reviewed" : "review";
 }

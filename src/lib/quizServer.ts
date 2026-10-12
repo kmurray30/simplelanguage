@@ -104,7 +104,7 @@ export async function loadDeckSummaries(languageCode: LanguageCode): Promise<Dec
       const stats = learnerId ? await loadStats(learnerId, quiz.statsKey) : [];
       const byId = new Map(stats.map((s) => [s.itemId, s]));
       const counts: Record<Band, number> = { new: 0, review: 0, reviewed: 0 };
-      for (const item of quiz.items) counts[bandOf(byId.get(item.id), now)]++;
+      for (const item of quiz.items) counts[bandOf(byId.get(item.id), now, deck === "words")]++;
       return { deck, total: quiz.items.length, counts };
     }),
   );

@@ -15,7 +15,6 @@ export default async function LessonPage({ params, searchParams }: PageProps<"/l
       poolWords={s.poolWords}
       initialAnswerMode={s.answerMode}
       initialStats={s.stats}
-      initialRuns={s.runs}
     />
   );
 }

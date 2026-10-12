@@ -92,7 +92,7 @@ export function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: Item
               .filter((item) => item.group === group)
               .map((item) => {
                 const stat = byId.get(item.id);
-                const band = bandOf(stat, now);
+                const band = bandOf(stat, now, quiz.deck === "words");
                 return (
                   <span
                     key={item.id}
@@ -111,7 +111,7 @@ export function MasteryGrid({ quiz, stats }: { quiz: QuizDefinition; stats: Item
         </div>
       ))}
       <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-foreground-muted">
-        {(["new", "review", "reviewed"] as const).map((band) => (
+        {(quiz.deck === "words" ? (["review", "reviewed"] as const) : (["new", "review", "reviewed"] as const)).map((band) => (
           <span key={band} className="flex items-center gap-1">
             <span className={clsx("w-3 h-3 rounded border", BAND_STYLE[band])} />
             {BAND_LABEL[band]}

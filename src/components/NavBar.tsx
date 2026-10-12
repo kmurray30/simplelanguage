@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clsx } from "clsx";
-import { LANGUAGES, LANGUAGE_CODES, DEFAULT_LANGUAGE, isLanguageCode } from "@/lib/languages";
+import { LANGUAGES, LANGUAGE_CODES, DEFAULT_LANGUAGE, isLanguageCode, type LanguageCode } from "@/lib/languages";
 
 // Flashcards, quizzes and lessons all live under Learn, so the tab stays highlighted on /flashcards too.
 const links = [
@@ -15,6 +16,77 @@ const links = [
   },
 ];
 
+// The current language's flag as a button; opens a list of every language (flag + name) to switch.
+function LanguageMenu({ current, onSelect }: { current: LanguageCode; onSelect: (code: LanguageCode) => void }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: PointerEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Language: ${LANGUAGES[current].name}`}
+        className="flex items-center gap-1.5 rounded-full pl-2 pr-2.5 h-9 border border-border hover:bg-surface-muted transition-colors"
+      >
+        <span className="text-xl leading-none" aria-hidden>
+          {LANGUAGES[current].flag}
+        </span>
+        <svg width="10" height="10" viewBox="0 0 12 12" aria-hidden className={clsx("text-foreground-muted transition-transform", open && "rotate-180")}>
+          <path d="M2 4.5 6 8.5 10 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <ul
+          role="listbox"
+          aria-label="Choose a language"
+          className="absolute left-0 top-full mt-2 z-30 min-w-44 rounded-xl border border-border bg-surface shadow-lg py-1"
+        >
+          {LANGUAGE_CODES.map((code) => (
+            <li key={code} role="option" aria-selected={code === current}>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  if (code !== current) onSelect(code);
+                }}
+                className={clsx(
+                  "w-full flex items-center gap-3 px-3 py-2 text-sm text-left transition-colors hover:bg-surface-muted",
+                  code === current && "bg-accent-soft",
+                )}
+              >
+                <span className="text-xl leading-none" aria-hidden>
+                  {LANGUAGES[code].flag}
+                </span>
+                <span className="flex-1">{LANGUAGES[code].name}</span>
+                {code === current && <span aria-hidden>✓</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -22,9 +94,8 @@ export function NavBar() {
 
   const langParam = searchParams.get("lang");
   const languageCode = isLanguageCode(langParam) ? langParam : DEFAULT_LANGUAGE;
-  const lang = LANGUAGES[languageCode];
 
-  function switchLanguage(code: typeof languageCode) {
+  function switchLanguage(code: LanguageCode) {
     try {
       localStorage.setItem("lang", code);
     } catch {
@@ -32,7 +103,6 @@ export function NavBar() {
     }
     // Imperative DOM write so the accent/font swap instantly on click, since client-side
     // navigation won't re-run the no-FOUC <head> script that sets this on initial load.
-    // eslint-disable-next-line react-hooks/immutability
     document.documentElement.dataset.lang = code;
     router.push(`${pathname}?lang=${code}`);
   }
@@ -40,32 +110,11 @@ export function NavBar() {
   return (
     <header className="border-b border-border bg-surface/80 backdrop-blur sticky top-0 z-20">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
-        <Link href={`/?lang=${languageCode}`} className="flex items-baseline gap-2 shrink-0">
-          <span className="text-xl" aria-hidden>
-            {lang.flag}
-          </span>
-          <span className="text-sm text-foreground-muted">Vocab</span>
-        </Link>
-
-        <div className="flex items-center gap-1 overflow-x-auto">
-          {LANGUAGE_CODES.map((code) => (
-            <button
-              key={code}
-              type="button"
-              onClick={() => switchLanguage(code)}
-              title={LANGUAGES[code].name}
-              aria-label={LANGUAGES[code].name}
-              aria-pressed={code === languageCode}
-              className={clsx(
-                "shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-base transition-colors",
-                code === languageCode
-                  ? "bg-accent-soft ring-1 ring-accent"
-                  : "opacity-60 hover:opacity-100 hover:bg-surface-muted",
-              )}
-            >
-              {LANGUAGES[code].flag}
-            </button>
-          ))}
+        <div className="flex items-center gap-3 min-w-0">
+          <LanguageMenu current={languageCode} onSelect={switchLanguage} />
+          <Link href={`/?lang=${languageCode}`} className="text-sm text-foreground-muted shrink-0">
+            Vocab
+          </Link>
         </div>
 
         <nav className="flex items-center gap-1 shrink-0">

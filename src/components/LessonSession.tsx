@@ -4,13 +4,23 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { clsx } from "clsx";
 import { QuestionForm, TeachContent, VerdictContent, verdictColors, type Revealed } from "./QuizCards";
-import { AnswerModeToggle, BAND_STYLE, MasteryGrid, PillToggle, ScoreHistory } from "./learnShared";
+import { AnswerModeToggle, BAND_STYLE, MasteryGrid, PillToggle } from "./learnShared";
 import { itemNoun } from "./QuizSession";
 import { buildQuiz } from "@/lib/quizzes";
 import type { QuizType } from "@/lib/decks";
-import { LESSON_SIZE, LESSON_SIZES, outcomeOf, planLesson, scheduleRepeats, type LessonCard } from "@/lib/lessonPlan";
-import { BAND_LABEL, bandOf, type Band, type Outcome } from "@/lib/mastery";
-import type { ItemStatDTO, RunDTO } from "@/lib/quizSelection";
+import {
+  CORRECT_IN_A_ROW,
+  LESSON_SIZE,
+  LESSON_SIZES,
+  lessonScore,
+  nextStreak,
+  planCounts,
+  planLesson,
+  scheduleNext,
+  type LessonCard,
+} from "@/lib/lessonPlan";
+import { BAND_LABEL, bandOf, effectiveScore, type Band } from "@/lib/mastery";
+import type { ItemStatDTO } from "@/lib/quizSelection";
 import { POOL_PREFIX, type AnswerMode, type QuizWord } from "@/lib/wordsQuiz";
 import type { LanguageCode } from "@/types";
 
@@ -23,19 +33,9 @@ function currentTime(): number {
   return Date.now();
 }
 
-const OUTCOME_LABEL: Record<Outcome, string> = {
-  first: "First try",
-  second: "Second try",
-  third: "Third try",
-  missed: "Missed",
-};
-
-const OUTCOME_STYLE: Record<Outcome, string> = {
-  first: "text-success",
-  second: "text-accent",
-  third: "text-accent",
-  missed: "text-danger",
-};
+function randomIndex(length: number): number {
+  return Math.floor(Math.random() * length);
+}
 
 export function LessonSession({
   deck,
@@ -44,7 +44,6 @@ export function LessonSession({
   poolWords,
   initialAnswerMode,
   initialStats,
-  initialRuns,
 }: {
   deck: QuizType;
   languageCode: LanguageCode;
@@ -53,32 +52,35 @@ export function LessonSession({
   poolWords: QuizWord[];
   initialAnswerMode: AnswerMode;
   initialStats: ItemStatDTO[];
-  initialRuns: RunDTO[];
 }) {
   const [answerMode, setAnswerMode] = useState<AnswerMode>(initialAnswerMode);
   const quiz = buildQuiz({ deck, languageCode, words: [...words, ...poolWords], answerMode });
   // The progress grid only shows what's already on the list, not the words a lesson could add.
   const gridQuiz = { ...quiz, items: quiz.items.filter((i) => !i.id.startsWith(POOL_PREFIX)) };
   const noun = itemNoun(deck);
+  const isWords = deck === "words";
+  // Your own words need review from the moment you add them; "new" ones come from the suggestion pool.
+  const isNewItem = isWords ? (item: { id: string }) => item.id.startsWith(POOL_PREFIX) : undefined;
 
   const [phase, setPhase] = useState<Phase>("start");
   const [stats, setStats] = useState(initialStats);
-  const [runs, setRuns] = useState(initialRuns);
   const [size, setSize] = useState<number>(LESSON_SIZE);
   const [idMap, setIdMap] = useState<Record<string, string>>({});
   const [cards, setCards] = useState<LessonCard[]>([]);
-  const [newIds, setNewIds] = useState<string[]>([]);
+  const [lessonItemIds, setLessonItemIds] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
   const [input, setInput] = useState("");
   const [invalid, setInvalid] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Revealed | null>(null);
   const [attempts, setAttempts] = useState<Record<string, Attempt[]>>({});
+  const [streaks, setStreaks] = useState<Record<string, number>>({});
   const [keypadOpen, setKeypadOpen] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [now, setNow] = useState(() => Date.now());
 
   const inputRef = useRef<HTMLInputElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const card = cards[index];
   const item = card ? quiz.itemById(card.itemId) : undefined;
@@ -90,17 +92,34 @@ export function LessonSession({
     else if (window.matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
   }, [phase, index, revealed, card?.kind]);
 
+  // A card that shows the answer (a new item's teach card, or the verdict after answering) plays
+  // its audio on its own. Audio is only stored once per word/syllable/letter - the server reuses it.
+  const showingAnswer = phase === "card" && !!card && (card.kind === "teach" || revealed !== null);
+  const audioSrc = showingAnswer && item ? quiz.audioSrc(item) : null;
+  useEffect(() => {
+    if (!audioSrc) return;
+    const audio = new Audio(audioSrc);
+    audioRef.current = audio;
+    audio.play().catch(() => {
+      // Autoplay can be blocked; the card's audio button still works.
+    });
+    return () => {
+      audio.pause();
+    };
+  }, [audioSrc, index, revealed]);
+
   function start() {
     const startedAt = currentTime();
-    const plan = planLesson({ items: quiz.items, stats, now: startedAt, size });
+    const plan = planLesson({ items: quiz.items, stats, now: startedAt, size, isNew: isNewItem });
     setNow(startedAt);
     setCards(plan.cards);
-    setNewIds(plan.newIds);
+    setLessonItemIds([...new Set(plan.cards.map((c) => c.itemId))]);
     setIndex(0);
     setInput("");
     setInvalid(null);
     setRevealed(null);
     setAttempts({});
+    setStreaks({});
     setSaveState("idle");
     setPhase("card");
   }
@@ -108,24 +127,26 @@ export function LessonSession({
   function submit(e: FormEvent) {
     e.preventDefault();
     if (!card || !item || revealed) return;
-    const grade = quiz.grade(item, card.variantIndex, input);
-    if (grade.status === "invalid") {
+    // Nothing typed is a skip: it shows the answer and counts as a miss.
+    const blank = input.trim() === "";
+    const grade = blank ? null : quiz.grade(item, card.variantIndex, input);
+    if (grade?.status === "invalid") {
       setInvalid(grade.message);
       return;
     }
-    const correct = grade.status === "correct";
+    const correct = grade?.status === "correct";
     setInvalid(null);
     setRevealed({
       correct,
-      given: grade.status === "wrong" ? grade.given : input.trim(),
-      message: grade.status === "wrong" ? grade.message : null,
-      note: grade.status === "correct" ? grade.note : null,
+      given: grade?.status === "wrong" ? grade.given : input.trim(),
+      message: grade?.status === "wrong" ? grade.message : null,
+      note: grade?.status === "correct" ? grade.note : null,
     });
     setAttempts({ ...attempts, [item.id]: [...(attempts[item.id] ?? []), { variantIndex: card.variantIndex, given: input.trim(), correct }] });
-    // Missed on the first viewing: it comes back twice more later in this lesson.
-    if (!correct && card.viewing === 1) {
-      setCards(scheduleRepeats(cards, index, card, () => Math.floor(Math.random() * item.variants.length)));
-    }
+    // Right twice in a row locks an item in; anything less brings it back a few cards later.
+    const streak = nextStreak(streaks[item.id] ?? 0, correct);
+    setStreaks({ ...streaks, [item.id]: streak });
+    setCards(scheduleNext(cards, index, item.id, streak, () => randomIndex(item.variants.length)));
   }
 
   function next() {
@@ -161,10 +182,9 @@ export function LessonSession({
         }),
       });
       if (!res.ok) throw new Error(`Save failed (${res.status})`);
-      const data: { stats: ItemStatDTO[]; runs: RunDTO[]; idMap: Record<string, string> } = await res.json();
+      const data: { stats: ItemStatDTO[]; idMap: Record<string, string> } = await res.json();
       setIdMap(data.idMap);
       setStats(data.stats);
-      setRuns(data.runs);
       setNow(currentTime());
       setSaveState("saved");
     } catch {
@@ -177,7 +197,7 @@ export function LessonSession({
   if (quiz.items.length === 0) {
     return (
       <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-16 flex flex-col items-center gap-3 text-center">
-        <p className="text-sm text-foreground-muted">You don&apos;t have any words yet. Add some from the list to start a lesson.</p>
+        <p className="text-sm text-foreground-muted">There&apos;s nothing to learn here yet.</p>
         <Link href={`/?lang=${languageCode}`} className="text-sm underline">
           Go to your list
         </Link>
@@ -189,10 +209,12 @@ export function LessonSession({
   if (phase === "start") {
     const counts: Record<Band, number> = { new: 0, review: 0, reviewed: 0 };
     const statById = new Map(stats.map((s) => [s.itemId, s]));
-    for (const it of gridQuiz.items) counts[bandOf(statById.get(it.id), now)]++;
-    const unseenTotal = quiz.items.filter((it) => !statById.get(it.id)?.scoreAt).length;
-    const lessonSize = Math.min(size, quiz.items.length);
-    const newInNext = Math.min(unseenTotal, Math.round(lessonSize / 3));
+    for (const it of gridQuiz.items) counts[bandOf(statById.get(it.id), now, isWords)]++;
+    // What the next lesson will hold, using the same rules the lesson itself does.
+    const newAvailable = isWords ? poolWords.length : quiz.items.filter((it) => !statById.get(it.id)?.scoreAt).length;
+    const reviewAvailable = isWords ? words.length : quiz.items.length - newAvailable;
+    const { newCount, reviewCount } = planCounts({ total: Math.min(size, quiz.items.length), newAvailable, reviewAvailable });
+    const bands: Band[] = isWords ? ["review", "reviewed"] : ["new", "review", "reviewed"];
     return (
       <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-6">
         <div className="flex items-baseline justify-between gap-3">
@@ -204,12 +226,13 @@ export function LessonSession({
 
         <section className="rounded-2xl border border-border bg-surface p-4 flex flex-col gap-4">
           <p className="text-sm text-foreground-muted">
-            A lesson mixes new {noun}s with review - about a third new, the rest the ones you know least or haven&apos;t seen in
-            a while. New {noun}s are shown before they&apos;re asked. Miss one and it comes back twice more.
-            {deck === "words" && poolWords.length > 0 && " New words come from the suggestions list and are added to your list as Learned."}
+            A lesson mixes new {noun}s with review - the ones you know least or haven&apos;t seen in a while. New ones are shown
+            before they&apos;re asked. Every {noun} has to be right {CORRECT_IN_A_ROW} times in a row, with others in between,
+            before the lesson ends.
+            {isWords && poolWords.length > 0 && " New words come from the suggestions list and are added to your list as Learned."}
           </p>
           <div className="flex flex-wrap gap-2">
-            {(["new", "review", "reviewed"] as const).map((band) => (
+            {bands.map((band) => (
               <span key={band} className={clsx("text-xs px-2.5 py-1 rounded-full border", BAND_STYLE[band])}>
                 {counts[band]} {BAND_LABEL[band]}
               </span>
@@ -224,20 +247,15 @@ export function LessonSession({
                 onChange={setSize}
               />
             </div>
-            {deck === "words" && <AnswerModeToggle languageCode={languageCode} value={answerMode} onChange={setAnswerMode} />}
+            {isWords && <AnswerModeToggle languageCode={languageCode} value={answerMode} onChange={setAnswerMode} />}
           </div>
           <button
             type="button"
             onClick={start}
             className="self-start px-5 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
           >
-            Start lesson{newInNext > 0 ? ` (${newInNext} new)` : ""}
+            Start lesson ({newCount} new · {reviewCount} review)
           </button>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <h2 className="text-sm font-medium">Your scores</h2>
-          <ScoreHistory runs={runs} />
         </section>
 
         <section className="flex flex-col gap-3">
@@ -251,44 +269,62 @@ export function LessonSession({
   // ---- Results ---------------------------------------------------------------------------------
   if (phase === "results") {
     const afterById = new Map(stats.map((s) => [s.itemId, s]));
-    const rows = Object.entries(attempts).map(([itemId, list]) => ({
-      item: quiz.itemById(itemId),
-      outcome: outcomeOf(list.map((a) => a.correct)),
-      // Where the item stands now, once saved - as a label, never as a number.
-      band: saveState === "saved" ? bandOf(afterById.get(idMap[itemId] ?? itemId), now) : null,
-      isNew: newIds.includes(itemId),
-    }));
-    const addedToList = Object.keys(idMap).length;
-    const firstTry = rows.filter((r) => r.outcome === "first").length;
+    const rows = lessonItemIds.flatMap((itemId) => {
+      const rowItem = quiz.itemById(itemId);
+      if (!rowItem) return [];
+      const list = attempts[itemId] ?? [];
+      return [
+        {
+          item: rowItem,
+          lesson: lessonScore(list.map((a) => a.correct)),
+          overall: saveState === "saved" ? Math.round(effectiveScore(afterById.get(idMap[itemId] ?? itemId), now)) : null,
+        },
+      ];
+    });
     return (
-      <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-6">
-        <section className="rounded-2xl border border-border bg-surface p-6 flex flex-col items-center gap-2 text-center">
-          <span className="text-xs uppercase tracking-wide text-foreground-muted">Lesson complete</span>
-          <span className="text-6xl font-medium tabular-nums">
-            {firstTry}
-            <span className="text-foreground-muted text-3xl"> / {rows.length}</span>
-          </span>
-          <span className="text-sm text-foreground-muted">right first try</span>
-          <span className="text-xs text-foreground-muted min-h-4" aria-live="polite">
-            {saveState === "saving" && "Saving your progress..."}
-            {saveState === "saved" && (addedToList > 0 ? `Progress saved. ${addedToList} new word${addedToList === 1 ? "" : "s"} added to your list under Learned.` : "Progress saved.")}
+      <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-5">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-lg font-medium">Lesson complete</h1>
+          <span className="text-xs text-foreground-muted" aria-live="polite">
+            {saveState === "saving" && "Saving..."}
+            {saveState === "saved" && "Saved"}
             {saveState === "error" && (
-              <>
-                Couldn&apos;t save your progress.{" "}
-                <button type="button" className="underline" onClick={() => void save()}>
-                  Try again
-                </button>
-              </>
+              <button type="button" className="underline" onClick={() => void save()}>
+                Couldn&apos;t save - try again
+              </button>
             )}
           </span>
-        </section>
+        </div>
+
+        <ul className="flex flex-col gap-2">
+          {rows.map(({ item: rowItem, lesson, overall }) => (
+            <li key={rowItem.id} className="rounded-xl border border-border bg-surface p-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className={clsx("native-text truncate", quiz.answerSize === "word" ? "text-xl" : "text-3xl")}>{rowItem.answer}</div>
+                {quiz.answerSize === "word" && (
+                  <div className="text-xs text-foreground-muted truncate">{rowItem.variants[0]?.text}</div>
+                )}
+              </div>
+              <div className="flex gap-4 text-right shrink-0">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-foreground-muted">This lesson</div>
+                  <div className="tabular-nums font-medium">{lesson}/5</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wide text-foreground-muted">Overall</div>
+                  <div className="tabular-nums font-medium">{overall === null ? "…" : `${overall}/100`}</div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
 
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={start}
             disabled={saveState === "saving"}
-            className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="px-5 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             Next lesson
           </button>
@@ -296,26 +332,6 @@ export function LessonSession({
             Progress
           </button>
         </div>
-
-        <ul className="flex flex-col gap-2">
-          {rows.map(({ item: rowItem, outcome, band, isNew }) =>
-            rowItem ? (
-              <li key={rowItem.id} className="rounded-xl border border-border bg-surface p-3 flex items-center gap-3">
-                <span className={clsx("native-text text-center", quiz.answerSize === "word" ? "text-xl" : "text-3xl w-12")}>{rowItem.answer}</span>
-                <div className="flex-1 min-w-0 text-sm">
-                  <div className={clsx("font-medium", OUTCOME_STYLE[outcome])}>
-                    {OUTCOME_LABEL[outcome]}
-                    {isNew && <span className="ml-2 text-[11px] uppercase tracking-wide text-foreground-muted">new</span>}
-                  </div>
-                  <div className="text-xs text-foreground-muted truncate">{rowItem.variants[0]?.text.replace(/\*\*/g, "")}</div>
-                </div>
-                {band && (
-                  <span className={clsx("text-[11px] px-2 py-0.5 rounded-full border shrink-0", BAND_STYLE[band])}>{BAND_LABEL[band]}</span>
-                )}
-              </li>
-            ) : null,
-          )}
-        </ul>
       </div>
     );
   }
@@ -325,7 +341,9 @@ export function LessonSession({
   const isTeach = card.kind === "teach";
   const isRevealed = revealed !== null;
   const isLast = index + 1 === cards.length;
-  const done = index + (isTeach || isRevealed ? 1 : 0);
+  const locked = lessonItemIds.filter((id) => (streaks[id] ?? 0) >= CORRECT_IN_A_ROW).length;
+  const streak = streaks[card.itemId] ?? 0;
+  const tried = (attempts[card.itemId] ?? []).length > 0;
 
   return (
     <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-8 flex flex-col gap-4">
@@ -334,14 +352,16 @@ export function LessonSession({
           &larr;
         </Link>
         <div className="flex-1 h-1.5 rounded-full bg-surface-muted overflow-hidden">
-          <div className="h-full bg-accent transition-all" style={{ width: `${(done / cards.length) * 100}%` }} />
+          <div className="h-full bg-accent transition-all" style={{ width: `${(locked / Math.max(1, lessonItemIds.length)) * 100}%` }} />
         </div>
         <span className="text-xs text-foreground-muted tabular-nums">
-          {index + 1} / {cards.length}
+          {locked} / {lessonItemIds.length}
         </span>
       </div>
-      {card.kind === "ask" && card.viewing > 1 && (
-        <p className="text-xs text-foreground-muted text-center">Again - {card.viewing === 2 ? "second" : "third"} time for this one.</p>
+      {card.kind === "ask" && tried && !isRevealed && (
+        <p className="text-xs text-foreground-muted text-center">
+          {streak === 1 ? "Once more in a row to lock this one in." : "Again - it has to be right twice in a row."}
+        </p>
       )}
 
       {isTeach ? (
@@ -388,8 +408,14 @@ export function LessonSession({
               )}
             >
               {revealed && <VerdictContent quiz={quiz} pick={pick} entry={revealed} />}
-              {revealed && !revealed.correct && card.viewing === 1 && (
-                <p className="text-xs text-foreground-muted">This one will come back twice more in this lesson.</p>
+              {revealed && (
+                <p className="text-xs text-foreground-muted">
+                  {streak >= CORRECT_IN_A_ROW
+                    ? "Locked in for this lesson."
+                    : revealed.correct
+                      ? "Right! It comes back once more to lock it in."
+                      : "It comes back - it has to be right twice in a row."}
+                </p>
               )}
               <button
                 ref={nextRef}

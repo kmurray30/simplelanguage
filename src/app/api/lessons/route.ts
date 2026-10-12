@@ -19,11 +19,11 @@ const LessonSchema = z.object({
     .array(
       z.object({
         itemId: z.string().min(1).max(60),
-        // Every viewing of the item in order: one if right first time, up to three otherwise.
+        // Every attempt at the item in order (an item has to be right twice in a row, so there can be many).
         attempts: z
           .array(z.object({ variantIndex: z.number().int().min(0).max(20), given: z.string().max(80) }))
           .min(1)
-          .max(3),
+          .max(60),
       }),
     )
     .min(1)
@@ -31,7 +31,7 @@ const LessonSchema = z.object({
 });
 
 // Saves a finished lesson. Each item's viewings are re-graded on the server; the viewing it was first
-// right on (1st / 2nd / 3rd, or never) sets how much its mastery score moves.
+// wrong answers it took sets how much its mastery score moves.
 export async function POST(req: NextRequest) {
   const parsed = LessonSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
