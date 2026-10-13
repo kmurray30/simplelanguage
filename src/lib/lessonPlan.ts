@@ -18,6 +18,8 @@ export const LESSON_LENGTHS = [
 export type LessonLength = (typeof LESSON_LENGTHS)[number]["value"];
 export const DEFAULT_LENGTH: LessonLength = "medium";
 export const NEW_COST = 2;
+// New items are drawn at random from this many of the earliest unlearned ones.
+export const NEW_WINDOW = 15;
 export const REVIEW_COST = 1;
 // How many consecutive right answers lock an item in for the lesson.
 export const CORRECT_IN_A_ROW = 2;
@@ -71,7 +73,9 @@ export function planLesson({
 }): LessonPlan {
   const statById = new Map(stats.map((s) => [s.itemId, s]));
   const newCheck = isNew ?? ((item: Pickable) => !statById.get(item.id)?.scoreAt);
-  // New material is taken in the deck's own order, so lessons walk the curriculum.
+  // New material comes from the front of the curriculum, but not strictly in order: each lesson
+  // picks at random from the next NEW_WINDOW unlearned items (so the basics still come first, but
+  // a lesson isn't just the next four letters of the keypad, in keypad order).
   const newPool = items.filter(newCheck);
   // Review: weakest (most decayed, or never scored) first; ties keep list order.
   const reviewPool = items
@@ -82,7 +86,7 @@ export function planLesson({
 
   const { newCount, reviewCount } = planCounts({ budget, newAvailable: newPool.length, reviewAvailable: reviewPool.length });
 
-  const fresh = newPool.slice(0, newCount);
+  const fresh = shuffle(newPool.slice(0, Math.max(NEW_WINDOW, newCount)), rand).slice(0, newCount);
   const review = shuffle(reviewPool.slice(0, reviewCount), rand);
   const variantOf = (item: Pickable) => Math.floor(rand() * item.variants.length);
 

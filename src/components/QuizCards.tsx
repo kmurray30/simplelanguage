@@ -6,9 +6,9 @@
 import { type FormEvent, type ReactNode, type RefObject } from "react";
 import { clsx } from "clsx";
 import { AudioButton } from "./AudioButton";
+import { MnemonicFigure, MnemonicTip } from "./Mnemonic";
 import { Emphasis } from "./Emphasis";
 import { QuizKeypad, hasKeypad } from "./QuizKeypad";
-import { MNEMONIC_CREDIT } from "@/lib/kanaMnemonics";
 import type { QuizDefinition, QuizItem } from "@/lib/quizTypes";
 import type { Pick } from "@/lib/quizSelection";
 
@@ -22,10 +22,11 @@ export const verdictColors = (revealed: { correct: boolean; close?: boolean } | 
       ? "border-warning/50 bg-warning-soft"
       : "border-danger/50 bg-danger-soft";
 
-function AnswerBlock({ quiz, item }: { quiz: QuizDefinition; item: QuizItem }) {
+function AnswerBlock({ quiz, item, tip = false }: { quiz: QuizDefinition; item: QuizItem; tip?: boolean }) {
   const audio = quiz.audioSrc(item);
   return (
-    <div className="flex flex-col items-center gap-1">
+    <div className="relative flex flex-col items-center gap-1">
+      {tip && item.mnemonic && <MnemonicTip mnemonic={item.mnemonic} buttonClassName="absolute -right-10 top-1" popoverClassName="left-1/2 -translate-x-1/2 top-full mt-2 w-60" />}
       <span className={clsx("native-text leading-tight text-center", quiz.answerSize === "word" ? "text-5xl" : "text-7xl")}>
         {item.answer}
       </span>
@@ -82,7 +83,7 @@ export function VerdictContent({ quiz, pick, entry }: { quiz: QuizDefinition; pi
         <span className="text-lg font-medium">{entry.correct ? "Correct" : entry.close ? "Almost" : "Not quite"}</span>
       </div>
 
-      <AnswerBlock quiz={quiz} item={item} />
+      <AnswerBlock quiz={quiz} item={item} tip={entry.correct} />
 
       {!entry.correct && (
         <p className="text-sm">
@@ -103,20 +104,6 @@ export function VerdictContent({ quiz, pick, entry }: { quiz: QuizDefinition; pi
 
       <ItemNote item={item} variantIndex={pick.variantIndex} />
     </>
-  );
-}
-
-// A picture that makes a letter's shape stick (basic kana), with its one-line story.
-export function MnemonicFigure({ mnemonic, className }: { mnemonic: { src: string; caption: string }; className?: string }) {
-  return (
-    <figure className={clsx("flex flex-col items-center gap-1.5", className)}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- tiny static crops; next/image adds nothing here */}
-      <img src={mnemonic.src} alt="" width={124} height={128} className="w-[124px] h-[128px] rounded-xl bg-white p-1 object-contain" />
-      <figcaption className="text-sm text-center max-w-xs">
-        {mnemonic.caption}
-        <span className="block text-[10px] text-foreground-muted">{MNEMONIC_CREDIT}</span>
-      </figcaption>
-    </figure>
   );
 }
 

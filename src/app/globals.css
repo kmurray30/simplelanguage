@@ -122,7 +122,8 @@
 html,
 body {
   overflow-x: clip;
-  overscroll-behavior-x: none;
+  /* No rubber-band bounce either way, so the header never gets dragged around. */
+  overscroll-behavior: none;
 }
 
 body {

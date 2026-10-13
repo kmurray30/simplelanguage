@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AudioButton } from "./AudioButton";
 import { Emphasis } from "./Emphasis";
+import { MnemonicTip } from "./Mnemonic";
 import { LANGUAGES } from "@/lib/languages";
 import { HANGUL_SYLLABLES, HANGUL_SYMBOLS } from "@/lib/hangul";
 import { CUES, KANA, kanaNote, type KanaScript } from "@/lib/kana";
-import { kanaMnemonic, MNEMONIC_CREDIT, type Mnemonic } from "@/lib/kanaMnemonics";
+import { kanaMnemonic, type Mnemonic } from "@/lib/kanaMnemonics";
 import { DECK_LABELS, availableDecks, type DeckType } from "@/lib/decks";
 import { clsx } from "clsx";
 import type { Word, LanguageCode } from "@/types";
@@ -22,7 +23,6 @@ type Face = {
   secondary?: string; // may contain **emphasis** markers
   tertiary?: string; // rendered in italics, quoted
   note?: string;
-  mnemonic?: Mnemonic; // picture mnemonic, behind a small button so it doesn't give the card away
 };
 
 type FlashCard = {
@@ -31,6 +31,7 @@ type FlashCard = {
   english: Face;
   audioSrc?: string;
   audioOn: FrontSide; // the face that shows the audio button and auto-plays when it appears
+  mnemonic?: Mnemonic; // picture mnemonic (basic kana), behind a 💡 button on both faces
 };
 
 function ttsSrc(languageCode: LanguageCode, text: string): string {
@@ -105,8 +106,8 @@ function kanaCards(script: KanaScript): FlashCard[] {
           caption: other && entry.group !== "Special" ? `${script === "hiragana" ? "katakana" : "hiragana"} ${other}` : undefined,
           secondary: CUES[entry.romaji]?.[0],
           note: kanaNote(entry, script),
-          mnemonic: kanaMnemonic(char, script),
         },
+        mnemonic: kanaMnemonic(char, script),
         // No audio: single kana read out by a TTS voice came out wrong too often.
         audioOn: "en" as const,
       },
@@ -185,7 +186,6 @@ export function FlashcardDeck({
   const [flipped, setFlipped] = useState(false);
   const [direction, setDirection] = useState(0);
   const [frontSide, setFrontSide] = useState<FrontSide>(defaultFront(initialDeck));
-  const [mnemonicOpen, setMnemonicOpen] = useState(false);
 
   const cards = useMemo<FlashCard[]>(() => {
     if (deck === "symbols") return symbolCards(languageCode);
@@ -220,13 +220,11 @@ export function FlashcardDeck({
     setDirection(delta);
     setIndex(target);
     setFlipped(false);
-    setMnemonicOpen(false);
   }
 
   // A tap anywhere on the card flips it, back and forth; moving is the side buttons (or ← →).
   function flip() {
     setFlipped((f) => !f);
-    setMnemonicOpen(false);
   }
 
   useEffect(() => {
@@ -237,8 +235,7 @@ export function FlashcardDeck({
       setDirection(delta);
       setIndex(target);
       setFlipped(false);
-      setMnemonicOpen(false);
-    }
+      }
     function onKey(e: KeyboardEvent) {
       if (e.key === "ArrowRight") navigate(1);
       else if (e.key === "ArrowLeft") navigate(-1);
@@ -298,30 +295,8 @@ export function FlashcardDeck({
         {face.note && (
           <p className="text-sm text-foreground-muted text-center max-w-sm">{face.note}</p>
         )}
-        {face.mnemonic && (
-          <div onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setMnemonicOpen((o) => !o)}
-              aria-expanded={mnemonicOpen}
-              aria-label="Show the picture mnemonic"
-              title="Picture mnemonic"
-              className={clsx(
-                "absolute top-3 right-3 w-8 h-8 rounded-full border border-border bg-surface text-sm flex items-center justify-center transition-colors",
-                mnemonicOpen ? "ring-2 ring-accent" : "hover:bg-surface-muted",
-              )}
-            >
-              💡
-            </button>
-            {mnemonicOpen && (
-              <div className="absolute inset-x-14 top-12 z-10 rounded-xl border border-border bg-surface shadow-lg p-3 flex flex-col items-center gap-1.5 animate-fade-in-up cursor-default">
-                {/* eslint-disable-next-line @next/next/no-img-element -- tiny static crops */}
-                <img src={face.mnemonic.src} alt="" width={124} height={128} className="w-[124px] h-[128px] rounded-lg bg-white object-contain" />
-                <p className="text-sm text-center">{face.mnemonic.caption}</p>
-                <p className="text-[10px] text-foreground-muted">{MNEMONIC_CREDIT}</p>
-              </div>
-            )}
-          </div>
+        {card.mnemonic && (
+          <MnemonicTip mnemonic={card.mnemonic} buttonClassName="absolute top-3 right-3" popoverClassName="inset-x-14 top-12" />
         )}
       </div>
     );
