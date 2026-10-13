@@ -62,6 +62,11 @@ export default async function LearnPage({ searchParams }: PageProps<"/learn">) {
                 <Link href={`/learn/${deck}/quiz?lang=${languageCode}`} className={clsx(buttonBase, "border border-border hover:bg-surface-muted")}>
                   Quiz
                 </Link>
+                {deck !== "words" && (
+                  <Link href={`/learn/${deck}/list?lang=${languageCode}`} className={clsx(buttonBase, "border border-border hover:bg-surface-muted")}>
+                    List
+                  </Link>
+                )}
               </div>
             </li>
           );

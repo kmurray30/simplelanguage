@@ -204,7 +204,7 @@ export function LessonSession({
       <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-16 flex flex-col items-center gap-3 text-center">
         <p className="text-sm text-foreground-muted">There&apos;s nothing to learn here yet.</p>
         <Link href={`/?lang=${languageCode}`} className="text-sm underline">
-          Go to your list
+          Go to your vocab
         </Link>
       </div>
     );

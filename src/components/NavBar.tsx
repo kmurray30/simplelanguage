@@ -9,7 +9,7 @@ import { LANGUAGES, LANGUAGE_CODES, DEFAULT_LANGUAGE, isLanguageCode, type Langu
 
 // Flashcards, quizzes and lessons all live under Learn, so the tab stays highlighted on /flashcards too.
 const links = [
-  { href: "/", label: "List", match: (pathname: string) => pathname === "/" },
+  { href: "/", label: "Vocab", match: (pathname: string) => pathname === "/" },
   {
     href: "/learn",
     label: "Learn",

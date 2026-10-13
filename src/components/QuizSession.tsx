@@ -205,7 +205,7 @@ export function QuizSession({
       <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-16 flex flex-col items-center gap-3 text-center">
         <p className="text-sm text-foreground-muted">You don&apos;t have any words yet. Add some from the list to quiz yourself.</p>
         <Link href={`/?lang=${languageCode}`} className="text-sm underline">
-          Go to your list
+          Go to your vocab
         </Link>
       </div>
     );
