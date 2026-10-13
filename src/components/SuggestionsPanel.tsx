@@ -130,7 +130,7 @@ export function SuggestionsPanel({
       </form>
 
       {isSearching ? (
-        <div className="scroll-contained space-y-2 max-h-[300px] sm:max-h-[560px] pr-2 -mr-2">
+        <div className="scroll-contained space-y-2 max-h-[600px] sm:max-h-[800px] pr-2 -mr-2">
           {searching && !searchResults && (
             <div className="space-y-2">
               {Array.from({ length: 2 }).map((_, i) => (
@@ -225,7 +225,7 @@ export function SuggestionsPanel({
           )}
 
           {items && (
-            <div className="scroll-contained space-y-2 max-h-[300px] sm:max-h-[560px] pr-2 -mr-2">
+            <div className="scroll-contained space-y-2 max-h-[600px] sm:max-h-[800px] pr-2 -mr-2">
               {items.map((item) => {
                 const addedWord = words.find((w) => w.nativeText === item.nativeText);
                 return (
