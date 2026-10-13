@@ -17,23 +17,26 @@ const VIEWS: { value: View; label: string }[] = [
 const EMPTY_VIEW: Record<View, string> = {
   mine: "No words yet. Add your first one, or get suggestions below to get started.",
   starred: "You haven't starred any words yet.",
-  learned: "Words you pick up in lessons show up here.",
+  learned: "Words you learn or practise in lessons show up here.",
 };
 
-function inView(word: Word, view: View): boolean {
+// Learned = taught by a lesson, or one of your own words you've since practised in a lesson.
+function inView(word: Word, view: View, lessonIds: ReadonlySet<string>): boolean {
   if (view === "starred") return word.starred;
-  if (view === "learned") return word.source === "lesson";
+  if (view === "learned") return word.source === "lesson" || lessonIds.has(word.id);
   return word.source === "added";
 }
 
 export function KnownWordsPanel({
   words,
+  lessonWordIds,
   onOpenDetail,
   onToggleStar,
   onEdit,
   onDelete,
 }: {
   words: Word[];
+  lessonWordIds: string[];
   onOpenDetail: (word: Word) => void;
   onToggleStar: (word: Word) => void;
   onEdit: (word: Word) => void;
@@ -45,7 +48,10 @@ export function KnownWordsPanel({
   const [view, setView] = useState<View>("mine");
   const [category, setCategory] = useState<WordCategory | "all">("all");
 
-  const viewWords = useMemo(() => words.filter((w) => inView(w, view)), [words, view]);
+  const viewWords = useMemo(() => {
+    const lessonIds = new Set(lessonWordIds);
+    return words.filter((w) => inView(w, view, lessonIds));
+  }, [words, view, lessonWordIds]);
 
   const presentCategories = useMemo(() => {
     const present = new Set(viewWords.flatMap((w) => w.categories));

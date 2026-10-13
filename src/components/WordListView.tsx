@@ -29,9 +29,11 @@ const BLANK_SEED: AddSeed = { prefill: null, initialInput: null };
 
 export function WordListView({
   initialWords,
+  lessonWordIds,
   languageCode,
 }: {
   initialWords: Word[];
+  lessonWordIds: string[];
   languageCode: LanguageCode;
 }) {
   const [words, setWords] = useState<Word[]>(initialWords);
@@ -101,6 +103,7 @@ export function WordListView({
 
       <KnownWordsPanel
         words={words}
+        lessonWordIds={lessonWordIds}
         onOpenDetail={(word) => setDetailWord(word)}
         onToggleStar={handleToggleStar}
         onEdit={(word) => setEditingWord(word)}

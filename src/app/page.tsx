@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { WordListView } from "@/components/WordListView";
 import { DEFAULT_LANGUAGE, isLanguageCode } from "@/lib/languages";
+import { readLearnerId } from "@/lib/learner";
 import type { Word } from "@/types";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,17 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const { lang } = await searchParams;
   const langParam = typeof lang === "string" ? lang : undefined;
   const languageCode = isLanguageCode(langParam) ? langParam : DEFAULT_LANGUAGE;
+
+  // Words this learner has practised in a lesson - the List's "Learned" view shows them along with
+  // the words lessons added.
+  const learnerId = await readLearnerId();
+  const lessonAnswers = learnerId
+    ? await prisma.quizAnswer.findMany({
+        where: { run: { learnerId, deck: `words-${languageCode}`, mode: "lesson" } },
+        select: { itemId: true },
+        distinct: ["itemId"],
+      })
+    : [];
 
   const words = await prisma.word.findMany({
     where: { languageCode },
@@ -50,5 +62,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
     updatedAt: w.updatedAt.toISOString(),
   }));
 
-  return <WordListView key={languageCode} initialWords={serialized} languageCode={languageCode} />;
+  return <WordListView
+      key={languageCode}
+      initialWords={serialized}
+      lessonWordIds={lessonAnswers.map((a) => a.itemId)}
+      languageCode={languageCode}
+    />;
 }
