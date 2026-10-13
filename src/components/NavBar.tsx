@@ -112,10 +112,10 @@ export function NavBar() {
     <header className="border-b border-border bg-surface/80 backdrop-blur sticky top-0 z-20">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <LanguageMenu current={languageCode} onSelect={switchLanguage} />
           <Link href={`/?lang=${languageCode}`} className="text-base font-semibold tracking-tight shrink-0">
             {SITE_NAME}
           </Link>
+          <LanguageMenu current={languageCode} onSelect={switchLanguage} />
         </div>
 
         <nav className="flex items-center gap-1 shrink-0">

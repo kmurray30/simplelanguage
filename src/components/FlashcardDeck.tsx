@@ -6,7 +6,8 @@ import { AudioButton } from "./AudioButton";
 import { Emphasis } from "./Emphasis";
 import { LANGUAGES } from "@/lib/languages";
 import { HANGUL_SYLLABLES, HANGUL_SYMBOLS } from "@/lib/hangul";
-import { CUES, KANA, KANA_AUDIO_TEXTS, kanaNote, type KanaScript } from "@/lib/kana";
+import { CUES, KANA, kanaNote, type KanaScript } from "@/lib/kana";
+import { kanaMnemonic, MNEMONIC_CREDIT, type Mnemonic } from "@/lib/kanaMnemonics";
 import { DECK_LABELS, availableDecks, type DeckType } from "@/lib/decks";
 import { clsx } from "clsx";
 import type { Word, LanguageCode } from "@/types";
@@ -21,6 +22,7 @@ type Face = {
   secondary?: string; // may contain **emphasis** markers
   tertiary?: string; // rendered in italics, quoted
   note?: string;
+  mnemonic?: Mnemonic; // picture mnemonic, behind a small button so it doesn't give the card away
 };
 
 type FlashCard = {
@@ -86,7 +88,7 @@ function syllableCards(languageCode: LanguageCode): FlashCard[] {
   }));
 }
 
-function kanaCards(script: KanaScript, languageCode: LanguageCode): FlashCard[] {
+function kanaCards(script: KanaScript): FlashCard[] {
   return KANA.flatMap((entry) => {
     const char = script === "hiragana" ? entry.hira : entry.kata;
     if (!char) return [];
@@ -103,8 +105,9 @@ function kanaCards(script: KanaScript, languageCode: LanguageCode): FlashCard[] 
           caption: other && entry.group !== "Special" ? `${script === "hiragana" ? "katakana" : "hiragana"} ${other}` : undefined,
           secondary: CUES[entry.romaji]?.[0],
           note: kanaNote(entry, script),
+          mnemonic: kanaMnemonic(char, script),
         },
-        audioSrc: KANA_AUDIO_TEXTS.has(char) ? ttsSrc(languageCode, char) : undefined,
+        // No audio: single kana read out by a TTS voice came out wrong too often.
         audioOn: "en" as const,
       },
     ];
@@ -125,6 +128,41 @@ const REFERENCE_FRONT_LABEL: Record<DeckType, string> = {
   hiragana: "Hiragana",
   katakana: "Katakana",
 };
+
+// Cards slide in from the side you're moving towards and out the other, tilting as they go, so the
+// direction is obvious: next comes in from the right, previous from the left.
+const SLIDE = {
+  enter: (dir: number) => ({ x: dir >= 0 ? "70%" : "-70%", rotate: dir >= 0 ? 6 : -6, opacity: 0, scale: 0.92 }),
+  center: { x: 0, rotate: 0, opacity: 1, scale: 1 },
+  exit: (dir: number) => ({ x: dir >= 0 ? "-70%" : "70%", rotate: dir >= 0 ? -6 : 6, opacity: 0, scale: 0.92 }),
+};
+
+function SideButton({ side, disabled, onClick }: { side: "left" | "right"; disabled: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={side === "left" ? "Previous card" : "Next card"}
+      className={clsx(
+        "absolute top-1/2 -translate-y-1/2 z-10 w-12 h-12 sm:w-14 sm:h-14 rounded-full border border-border bg-surface/95 shadow-md",
+        "flex items-center justify-center text-2xl text-foreground hover:bg-surface-muted active:scale-95 transition disabled:opacity-0 disabled:pointer-events-none",
+        side === "left" ? "left-1 sm:-left-7" : "right-1 sm:-right-7",
+      )}
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+        <path
+          d={side === "left" ? "M15 5 8 12l7 7" : "M9 5l7 7-7 7"}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+}
 
 // Words flip between English and the native script; reference decks start on the bare symbol.
 function defaultFront(deck: DeckType): FrontSide {
@@ -147,11 +185,12 @@ export function FlashcardDeck({
   const [flipped, setFlipped] = useState(false);
   const [direction, setDirection] = useState(0);
   const [frontSide, setFrontSide] = useState<FrontSide>(defaultFront(initialDeck));
+  const [mnemonicOpen, setMnemonicOpen] = useState(false);
 
   const cards = useMemo<FlashCard[]>(() => {
     if (deck === "symbols") return symbolCards(languageCode);
     if (deck === "syllables") return syllableCards(languageCode);
-    if (deck === "hiragana" || deck === "katakana") return kanaCards(deck, languageCode);
+    if (deck === "hiragana" || deck === "katakana") return kanaCards(deck);
     return wordCards(words);
   }, [deck, words, languageCode]);
 
@@ -181,25 +220,13 @@ export function FlashcardDeck({
     setDirection(delta);
     setIndex(target);
     setFlipped(false);
+    setMnemonicOpen(false);
   }
 
-  // Reveal first, then move on: the first activation flips the card, the next one advances.
-  function flipOrAdvance() {
-    if (flipped) go(1);
-    else setFlipped(true);
-  }
-
-  // Only the far-left fifth of the card goes back; everywhere else flips, then advances.
-  function handleCardClick(e: React.MouseEvent<HTMLDivElement>) {
-    // detail === 0 means a keyboard/assistive-tech activation with no real pointer position.
-    if (e.detail === 0) {
-      flipOrAdvance();
-      return;
-    }
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    if (x < 1 / 5) go(-1);
-    else flipOrAdvance();
+  // A tap anywhere on the card flips it, back and forth; moving is the side buttons (or ← →).
+  function flip() {
+    setFlipped((f) => !f);
+    setMnemonicOpen(false);
   }
 
   useEffect(() => {
@@ -210,6 +237,7 @@ export function FlashcardDeck({
       setDirection(delta);
       setIndex(target);
       setFlipped(false);
+      setMnemonicOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "ArrowRight") navigate(1);
@@ -270,6 +298,31 @@ export function FlashcardDeck({
         {face.note && (
           <p className="text-sm text-foreground-muted text-center max-w-sm">{face.note}</p>
         )}
+        {face.mnemonic && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setMnemonicOpen((o) => !o)}
+              aria-expanded={mnemonicOpen}
+              aria-label="Show the picture mnemonic"
+              title="Picture mnemonic"
+              className={clsx(
+                "absolute top-3 right-3 w-8 h-8 rounded-full border border-border bg-surface text-sm flex items-center justify-center transition-colors",
+                mnemonicOpen ? "ring-2 ring-accent" : "hover:bg-surface-muted",
+              )}
+            >
+              💡
+            </button>
+            {mnemonicOpen && (
+              <div className="absolute inset-x-14 top-12 z-10 rounded-xl border border-border bg-surface shadow-lg p-3 flex flex-col items-center gap-1.5 animate-fade-in-up cursor-default">
+                {/* eslint-disable-next-line @next/next/no-img-element -- tiny static crops */}
+                <img src={face.mnemonic.src} alt="" width={124} height={128} className="w-[124px] h-[128px] rounded-lg bg-white object-contain" />
+                <p className="text-sm text-center">{face.mnemonic.caption}</p>
+                <p className="text-[10px] text-foreground-muted">{MNEMONIC_CREDIT}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -311,66 +364,49 @@ export function FlashcardDeck({
         </div>
       ) : (
         <>
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="Flashcard: tap to flip, tap again for the next card, tap the far left to go back"
-            onClick={handleCardClick}
-            onKeyDown={(e) => {
-              // Space is handled globally (also covers an unfocused card); Enter only fires
-              // here, so handling Space too would double-toggle and cancel itself out.
-              if (e.key === "Enter") {
-                e.preventDefault();
-                flipOrAdvance();
-              }
-            }}
-            className={clsx(
-              "relative w-full rounded-3xl [perspective:1200px] cursor-pointer select-none [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
-              deck === "words" ? "h-72" : "h-96",
-            )}
-          >
-            <AnimatePresence mode="wait" custom={direction}>
-              <motion.div
-                key={card.id}
-                custom={direction}
-                initial={{ opacity: 0, x: direction >= 0 ? 24 : -24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: direction >= 0 ? -24 : 24 }}
-                transition={{ duration: 0.18 }}
-                className="absolute inset-0"
-              >
-                <div
-                  className="w-full h-full [transform-style:preserve-3d] transition-transform duration-500"
-                  style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
+          <div className="relative w-full">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Flashcard: tap to flip"
+              onClick={flip}
+              onKeyDown={(e) => {
+                // Space is handled globally (also covers an unfocused card); Enter only fires
+                // here, so handling Space too would double-toggle and cancel itself out.
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  flip();
+                }
+              }}
+              className={clsx(
+                "relative w-full rounded-3xl [perspective:1200px] cursor-pointer select-none [-webkit-tap-highlight-color:transparent] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+                deck === "words" ? "h-72" : "h-96",
+              )}
+            >
+              <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                <motion.div
+                  key={card.id}
+                  custom={direction}
+                  variants={SLIDE}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute inset-0"
                 >
-                  {renderFace(frontSide, 0)}
-                  {renderFace(frontSide === "en" ? "native" : "en", 180)}
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                  <div
+                    className="w-full h-full [transform-style:preserve-3d] transition-transform duration-500"
+                    style={{ transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)" }}
+                  >
+                    {renderFace(frontSide, 0)}
+                    {renderFace(frontSide === "en" ? "native" : "en", 180)}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => go(-1)}
-              disabled={index === 0}
-              className="px-4 py-2 rounded-full text-sm border border-border disabled:opacity-30 hover:bg-surface-muted transition-colors"
-            >
-              &larr; Prev
-            </button>
-            <button
-              onClick={() => setFlipped((f) => !f)}
-              className="px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground hover:opacity-90 transition-opacity"
-            >
-              Flip
-            </button>
-            <button
-              onClick={() => go(1)}
-              disabled={index === cards.length - 1}
-              className="px-4 py-2 rounded-full text-sm border border-border disabled:opacity-30 hover:bg-surface-muted transition-colors"
-            >
-              Next &rarr;
-            </button>
+            <SideButton side="left" disabled={index === 0} onClick={() => go(-1)} />
+            <SideButton side="right" disabled={index === cards.length - 1} onClick={() => go(1)} />
           </div>
 
           <div className="flex rounded-full border border-border p-0.5 text-xs">
@@ -396,10 +432,7 @@ export function FlashcardDeck({
         </>
       )}
 
-      <p className="text-[11px] text-foreground-muted text-center">
-        Tap the card to flip it, tap again for the next one · tap the far left to go back · space
-        and ← → work too
-      </p>
+      <p className="text-[11px] text-foreground-muted text-center">Tap the card to flip it · space and ← → work too</p>
     </div>
   );
 }

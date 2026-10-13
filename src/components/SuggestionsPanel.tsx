@@ -118,19 +118,19 @@ export function SuggestionsPanel({
           value={quickInput}
           onChange={(e) => setQuickInput(e.target.value)}
           placeholder={`Search or type an English or ${lang.name} word to add…`}
-          className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+          className="flex-1 min-w-0 rounded-full border border-border bg-background px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
         />
         <button
           type="submit"
           disabled={!quickInput.trim()}
           className="shrink-0 px-4 py-2 rounded-full text-sm bg-accent text-accent-foreground disabled:opacity-50 hover:opacity-90 transition-opacity"
         >
-          Find translations
+          Generate
         </button>
       </form>
 
       {isSearching ? (
-        <div className="space-y-2">
+        <div className="scroll-contained space-y-2 max-h-[300px] sm:max-h-[560px] pr-2 -mr-2">
           {searching && !searchResults && (
             <div className="space-y-2">
               {Array.from({ length: 2 }).map((_, i) => (
@@ -225,7 +225,7 @@ export function SuggestionsPanel({
           )}
 
           {items && (
-            <div className="space-y-2">
+            <div className="scroll-contained space-y-2 max-h-[300px] sm:max-h-[560px] pr-2 -mr-2">
               {items.map((item) => {
                 const addedWord = words.find((w) => w.nativeText === item.nativeText);
                 return (

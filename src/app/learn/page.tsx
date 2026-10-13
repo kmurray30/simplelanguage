@@ -10,8 +10,8 @@ const DECK_BLURB: Record<DeckType, string> = {
   words: "The words you've added to your list - see the meaning, type the word.",
   symbols: "The 40 Hangul letters: sound, name and an English example.",
   syllables: "270 common syllable blocks, from the basic grid to the tricky ones.",
-  hiragana: "All the hiragana: the basic 46, voiced ゛ and ゜ kana, combinations like きゃ, and small っ.",
-  katakana: "All the katakana, plus the long-vowel mark ー and foreign sounds like ファ and ティ.",
+  hiragana: "Japanese's main alphabet: one symbol per syllable, used for native words and grammar.",
+  katakana: "The same sounds in a sharper style, used for foreign loanwords like コーヒー (coffee).",
 };
 
 const buttonBase = "px-3.5 py-1.5 rounded-full text-sm transition-colors";
@@ -50,6 +50,9 @@ export default async function LearnPage({ searchParams }: PageProps<"/learn">) {
                 </div>
               )}
               <div className="flex flex-wrap gap-2">
+                <Link href={`/learn/${deck}/lesson?lang=${languageCode}`} className={clsx(buttonBase, "bg-accent text-accent-foreground hover:opacity-90")}>
+                  Lesson
+                </Link>
                 <Link
                   href={`/flashcards?lang=${languageCode}&deck=${deck}`}
                   className={clsx(buttonBase, "border border-border hover:bg-surface-muted")}
@@ -58,9 +61,6 @@ export default async function LearnPage({ searchParams }: PageProps<"/learn">) {
                 </Link>
                 <Link href={`/learn/${deck}/quiz?lang=${languageCode}`} className={clsx(buttonBase, "border border-border hover:bg-surface-muted")}>
                   Quiz
-                </Link>
-                <Link href={`/learn/${deck}/lesson?lang=${languageCode}`} className={clsx(buttonBase, "bg-accent text-accent-foreground hover:opacity-90")}>
-                  Lesson
                 </Link>
               </div>
             </li>

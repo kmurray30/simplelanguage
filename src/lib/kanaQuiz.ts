@@ -6,7 +6,8 @@
 // word), and the small っ. The katakana quiz adds the long-vowel mark ー and the foreign-sound
 // combinations (ファ, ティ...). Wrong answers get the fixed responses in kanaMisconceptions.ts.
 
-import { CUES, KANA, KANA_AUDIO_TEXTS, isHiraganaChar, isKatakanaChar, kanaNote, type KanaEntry, type KanaGroup, type KanaScript } from "./kana";
+import { kanaMnemonic } from "./kanaMnemonics";
+import { CUES, KANA, isHiraganaChar, isKatakanaChar, kanaNote, type KanaEntry, type KanaGroup, type KanaScript } from "./kana";
 import { explainKanaWrong } from "./kanaMisconceptions";
 import type { Grade, QuizDefinition, QuizItem, QuizVariant } from "./quizTypes";
 
@@ -132,6 +133,8 @@ function buildItems(script: KanaScript): QuizItem[] {
     const item = plainItem(entry, script);
     if (!item) continue;
     if (RARE_TWIN_CONTEXTS[char]) item.variants = RARE_TWIN_CONTEXTS[char];
+    const mnemonic = kanaMnemonic(char, script);
+    if (mnemonic) item.mnemonic = mnemonic;
     items.push(item);
   }
   return [...items, ...(script === "hiragana" ? HIRAGANA_SPECIAL : KATAKANA_SPECIAL)];
@@ -171,8 +174,8 @@ function makeQuiz(script: KanaScript): QuizDefinition {
     languageCode: "ja",
     statsKey: script,
     answerSize: "letter",
-    audioSrc: (item) =>
-      KANA_AUDIO_TEXTS.has(item.answer) ? `/api/tts?lang=ja&text=${encodeURIComponent(item.answer)}` : null,
+    // No audio: single kana read out by a TTS voice came out wrong too often.
+    audioSrc: () => null,
     title: script === "hiragana" ? "Hiragana quiz" : "Katakana quiz",
     intro: `You'll see an English word with the sound in bold, plus its romaji. Write it in ${script} - type it with a Japanese keyboard, or tap the keypad (゛ ゜ and 小 change the last kana).`,
     defaultPrompt: `Write the ${script} for the bold sound.`,

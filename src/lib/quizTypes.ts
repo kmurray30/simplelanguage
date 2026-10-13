@@ -28,6 +28,8 @@ export type QuizItem = {
   code: string; // phonetic code shown with the question (romanization)
   note: string; // explanation shown after every answer
   variants: QuizVariant[];
+  // A picture mnemonic (basic kana), shown when the item is taught and on its full card.
+  mnemonic?: { src: string; caption: string };
 };
 
 export type Grade =

@@ -8,6 +8,7 @@ import { clsx } from "clsx";
 import { AudioButton } from "./AudioButton";
 import { Emphasis } from "./Emphasis";
 import { QuizKeypad, hasKeypad } from "./QuizKeypad";
+import { MNEMONIC_CREDIT } from "@/lib/kanaMnemonics";
 import type { QuizDefinition, QuizItem } from "@/lib/quizTypes";
 import type { Pick } from "@/lib/quizSelection";
 
@@ -98,8 +99,24 @@ export function VerdictContent({ quiz, pick, entry }: { quiz: QuizDefinition; pi
         <p className="text-sm rounded-xl border border-success/30 bg-surface/60 px-3 py-2 text-left">{entry.note}</p>
       )}
 
+      {!entry.correct && item.mnemonic && <MnemonicFigure mnemonic={item.mnemonic} />}
+
       <ItemNote item={item} variantIndex={pick.variantIndex} />
     </>
+  );
+}
+
+// A picture that makes a letter's shape stick (basic kana), with its one-line story.
+export function MnemonicFigure({ mnemonic, className }: { mnemonic: { src: string; caption: string }; className?: string }) {
+  return (
+    <figure className={clsx("flex flex-col items-center gap-1.5", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element -- tiny static crops; next/image adds nothing here */}
+      <img src={mnemonic.src} alt="" width={124} height={128} className="w-[124px] h-[128px] rounded-xl bg-white p-1 object-contain" />
+      <figcaption className="text-sm text-center max-w-xs">
+        {mnemonic.caption}
+        <span className="block text-[10px] text-foreground-muted">{MNEMONIC_CREDIT}</span>
+      </figcaption>
+    </figure>
   );
 }
 
@@ -111,6 +128,7 @@ export function TeachContent({ quiz, pick }: { quiz: QuizDefinition; pick: Pick 
     <>
       <CueLine quiz={quiz} item={item} variantIndex={pick.variantIndex} />
       <AnswerBlock quiz={quiz} item={item} />
+      {item.mnemonic && <MnemonicFigure mnemonic={item.mnemonic} />}
       <ItemNote item={item} variantIndex={pick.variantIndex} />
     </>
   );
