@@ -187,12 +187,32 @@ export function FlashcardDeck({
   const [direction, setDirection] = useState(0);
   const [frontSide, setFrontSide] = useState<FrontSide>(defaultFront(initialDeck));
 
-  const cards = useMemo<FlashCard[]>(() => {
+  // A shuffled deck is an order over the cards' indexes; null = the deck's own order.
+  const [order, setOrder] = useState<number[] | null>(null);
+
+  const deckCards = useMemo<FlashCard[]>(() => {
     if (deck === "symbols") return symbolCards(languageCode);
     if (deck === "syllables") return syllableCards(languageCode);
     if (deck === "hiragana" || deck === "katakana") return kanaCards(deck);
     return wordCards(words);
   }, [deck, words, languageCode]);
+  const cards = order && order.length === deckCards.length ? order.map((i) => deckCards[i]) : deckCards;
+
+  function toggleShuffle() {
+    if (order) {
+      setOrder(null);
+    } else {
+      const next = deckCards.map((_, i) => i);
+      for (let i = next.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [next[i], next[j]] = [next[j], next[i]];
+      }
+      setOrder(next);
+    }
+    setIndex(0);
+    setFlipped(false);
+    setDirection(0);
+  }
 
   const card = cards[index];
 
@@ -202,6 +222,7 @@ export function FlashcardDeck({
     setIndex(0);
     setFlipped(false);
     setDirection(0);
+    setOrder(null);
     setFrontSide(defaultFront(next));
     // Native history API so the deck survives a reload/back without a server round trip - the
     // App Router keeps useSearchParams in sync with pushState/replaceState.
@@ -304,7 +325,7 @@ export function FlashcardDeck({
 
   return (
     <div className="mx-auto max-w-lg w-full px-4 sm:px-6 py-10 flex flex-col items-center gap-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
         {decks.length > 1 && (
           <div className="flex rounded-full border border-border p-0.5 text-xs">
             {decks.map((d) => (
@@ -328,6 +349,30 @@ export function FlashcardDeck({
           <span className="text-xs text-foreground-muted tabular-nums">
             {index + 1} / {cards.length}
           </span>
+        )}
+        {cards.length > 1 && (
+          <button
+            type="button"
+            onClick={toggleShuffle}
+            aria-pressed={!!order}
+            title={order ? "Back to the deck's order" : "Shuffle the deck"}
+            className={clsx(
+              "flex items-center gap-1 px-2.5 py-1 rounded-full text-xs border transition-colors",
+              order ? "bg-accent text-accent-foreground border-accent" : "border-border text-foreground-muted hover:text-foreground",
+            )}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden>
+              <path
+                d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Shuffle
+          </button>
         )}
       </div>
 

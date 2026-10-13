@@ -8,7 +8,8 @@ import { clsx } from "clsx";
 import { Modal } from "./Modal";
 import { TeachContent } from "./QuizCards";
 import { WordDetailDialog } from "./WordDetailDialog";
-import { BAND_LABEL, bandOf, effectiveScore, type Band } from "@/lib/mastery";
+import { Proficiency } from "./Proficiency";
+import { BAND_LABEL, bandOf, effectiveScore, proficiencyOf, type Band } from "@/lib/mastery";
 import type { ItemStatDTO, RunDTO } from "@/lib/quizSelection";
 import type { QuizDefinition, QuizItem } from "@/lib/quizTypes";
 import { NATIVE_SCRIPT_NAME, ROMANIZATION_NAME, supportsRomanized, type AnswerMode, type QuizWord } from "@/lib/wordsQuiz";
@@ -219,12 +220,17 @@ export function MasteryGrid({ quiz, stats, words }: { quiz: QuizDefinition; stat
       )}
 
       {cardWord ? (
-        <WordDetailDialog word={wordSummary(cardWord, quiz.languageCode)} onClose={() => setCard(null)} />
+        <WordDetailDialog
+          word={wordSummary(cardWord, quiz.languageCode)}
+          proficiency={proficiencyOf(byId.get(cardWord.id), now)}
+          onClose={() => setCard(null)}
+        />
       ) : (
         <Modal open={!!cardItem} onClose={() => setCard(null)}>
           {cardItem && (
             <div className="p-6 flex flex-col items-center gap-3 text-center">
               <TeachContent quiz={quiz} pick={{ itemId: cardItem.id, variantIndex: 0 }} />
+              <Proficiency value={proficiencyOf(byId.get(cardItem.id), now)} />
               <button
                 type="button"
                 onClick={() => setCard(null)}

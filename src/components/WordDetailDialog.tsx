@@ -4,13 +4,23 @@ import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
 import { AudioButton } from "./AudioButton";
 import { CategoryBadge } from "./CategoryBadge";
+import { Proficiency } from "./Proficiency";
 import { fetchWord } from "@/lib/api-client";
 import type { Word } from "@/types";
 
-export function WordDetailDialog({ word, onClose }: { word: Word | null; onClose: () => void }) {
+// `proficiency`: the word's current score (null = never practised); leave it out to not show one.
+export function WordDetailDialog({
+  word,
+  proficiency,
+  onClose,
+}: {
+  word: Word | null;
+  proficiency?: number | null;
+  onClose: () => void;
+}) {
   return (
     <Modal open={!!word} onClose={onClose} wide>
-      {word && <WordDetailBody key={word.id} summary={word} onClose={onClose} />}
+      {word && <WordDetailBody key={word.id} summary={word} proficiency={proficiency} onClose={onClose} />}
     </Modal>
   );
 }
@@ -18,7 +28,7 @@ export function WordDetailDialog({ word, onClose }: { word: Word | null; onClose
 // The list never carries "breakdown" (it's often a long LLM-generated paragraph, excluded from
 // the initial page load to keep it small) - fetch the full word fresh on open instead, which
 // also picks up a breakdown that finished generating in the background since the list loaded.
-function WordDetailBody({ summary, onClose }: { summary: Word; onClose: () => void }) {
+function WordDetailBody({ summary, proficiency, onClose }: { summary: Word; proficiency?: number | null; onClose: () => void }) {
   const [full, setFull] = useState<Word | null>(null);
 
   useEffect(() => {
@@ -55,6 +65,8 @@ function WordDetailBody({ summary, onClose }: { summary: Word; onClose: () => vo
       </div>
 
       <div className="text-lg font-medium">{word.englishGloss}</div>
+
+      {proficiency !== undefined && <Proficiency value={proficiency} />}
 
       {word.categories.length > 0 && (
         <div className="flex flex-wrap gap-1.5">

@@ -2,12 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { WordListView } from "@/components/WordListView";
 import { DEFAULT_LANGUAGE, isLanguageCode } from "@/lib/languages";
 import { readLearnerId } from "@/lib/learner";
+import { loadStats } from "@/lib/quizStore";
 import type { Word } from "@/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function Home({ searchParams }: PageProps<"/">) {
-  const { lang } = await searchParams;
+  const { lang, view } = await searchParams;
   const langParam = typeof lang === "string" ? lang : undefined;
   const languageCode = isLanguageCode(langParam) ? langParam : DEFAULT_LANGUAGE;
 
@@ -21,6 +22,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         distinct: ["itemId"],
       })
     : [];
+
+  // Proficiency per word, for the word card.
+  const stats = learnerId ? await loadStats(learnerId, `words-${languageCode}`) : [];
 
   const words = await prisma.word.findMany({
     where: { languageCode },
@@ -66,6 +70,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       key={languageCode}
       initialWords={serialized}
       lessonWordIds={lessonAnswers.map((a) => a.itemId)}
+      stats={stats}
+      initialView={view === "learned" || view === "starred" ? view : "mine"}
       languageCode={languageCode}
     />;
 }

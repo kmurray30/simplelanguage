@@ -63,6 +63,12 @@ export function applyOutcome(state: ScoreState | undefined, outcome: Outcome, no
   return { score: Math.min(MAX_SCORE, Math.max(0, next)), scoreAt: new Date(now) };
 }
 
+// The rounded proficiency to show on a card, or null if the item has never been practised.
+export function proficiencyOf(state: ScoreState | undefined, now: number): number | null {
+  if (!state || state.scoreAt === null) return null;
+  return Math.round(effectiveScore(state, now));
+}
+
 // What the user sees: three states. Unlearned = never answered; reviewed = the score is holding up
 // (one first-try lesson gets a word there, and it stays for about three days before fading back);
 // needs review = learned but the score is low or has faded.

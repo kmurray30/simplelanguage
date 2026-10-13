@@ -3,6 +3,7 @@ import { clsx } from "clsx";
 import { LANGUAGES } from "@/lib/languages";
 import { DECK_LABELS, type DeckType } from "@/lib/decks";
 import { loadDeckSummaries, parseLanguage } from "@/lib/quizServer";
+import { TestMenu } from "@/components/TestMenu";
 
 export const dynamic = "force-dynamic";
 
@@ -53,20 +54,19 @@ export default async function LearnPage({ searchParams }: PageProps<"/learn">) {
                 <Link href={`/learn/${deck}/lesson?lang=${languageCode}`} className={clsx(buttonBase, "bg-accent text-accent-foreground hover:opacity-90")}>
                   Lesson
                 </Link>
+                <TestMenu
+                  className={clsx(buttonBase, "border border-border hover:bg-surface-muted")}
+                  options={[
+                    { label: "Quiz", href: `/learn/${deck}/quiz?lang=${languageCode}` },
+                    { label: "Flashcards", href: `/flashcards?lang=${languageCode}&deck=${deck}` },
+                  ]}
+                />
                 <Link
-                  href={`/flashcards?lang=${languageCode}&deck=${deck}`}
+                  href={deck === "words" ? `/?lang=${languageCode}&view=learned` : `/learn/${deck}/list?lang=${languageCode}`}
                   className={clsx(buttonBase, "border border-border hover:bg-surface-muted")}
                 >
-                  Flashcards
+                  List
                 </Link>
-                <Link href={`/learn/${deck}/quiz?lang=${languageCode}`} className={clsx(buttonBase, "border border-border hover:bg-surface-muted")}>
-                  Quiz
-                </Link>
-                {deck !== "words" && (
-                  <Link href={`/learn/${deck}/list?lang=${languageCode}`} className={clsx(buttonBase, "border border-border hover:bg-surface-muted")}>
-                    List
-                  </Link>
-                )}
               </div>
             </li>
           );

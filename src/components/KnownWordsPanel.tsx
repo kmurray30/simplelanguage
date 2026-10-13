@@ -6,7 +6,8 @@ import { FilterChip } from "./FilterChip";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
 import type { Word, WordCategory } from "@/types";
 
-type View = "mine" | "starred" | "learned";
+export type WordView = "mine" | "starred" | "learned";
+type View = WordView;
 
 const VIEWS: { value: View; label: string }[] = [
   { value: "mine", label: "My words" },
@@ -30,6 +31,7 @@ function inView(word: Word, view: View, lessonIds: ReadonlySet<string>): boolean
 export function KnownWordsPanel({
   words,
   lessonWordIds,
+  initialView = "mine",
   onOpenDetail,
   onToggleStar,
   onEdit,
@@ -37,6 +39,7 @@ export function KnownWordsPanel({
 }: {
   words: Word[];
   lessonWordIds: string[];
+  initialView?: View;
   onOpenDetail: (word: Word) => void;
   onToggleStar: (word: Word) => void;
   onEdit: (word: Word) => void;
@@ -45,7 +48,7 @@ export function KnownWordsPanel({
   const [query, setQuery] = useState("");
   // Top level: which words (the ones you added, starred ones, or ones a lesson taught you).
   // Underneath, the categories narrow whichever of those is showing.
-  const [view, setView] = useState<View>("mine");
+  const [view, setView] = useState<View>(initialView);
   const [category, setCategory] = useState<WordCategory | "all">("all");
 
   const viewWords = useMemo(() => {

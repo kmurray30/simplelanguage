@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import dynamic from "next/dynamic";
-import { KnownWordsPanel } from "./KnownWordsPanel";
+import { KnownWordsPanel, type WordView } from "./KnownWordsPanel";
+import { proficiencyOf } from "@/lib/mastery";
+import type { ItemStatDTO } from "@/lib/quizSelection";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 
 // These are all modal overlays (invisible until opened) built on framer-motion - loading them
@@ -30,12 +32,19 @@ const BLANK_SEED: AddSeed = { prefill: null, initialInput: null };
 export function WordListView({
   initialWords,
   lessonWordIds,
+  stats,
+  initialView,
   languageCode,
 }: {
   initialWords: Word[];
   lessonWordIds: string[];
+  stats: ItemStatDTO[];
+  initialView: WordView;
   languageCode: LanguageCode;
 }) {
+  // One clock per mount, so the render stays pure.
+  const [now] = useState(() => Date.now());
+  const statById = new Map(stats.map((s) => [s.itemId, s]));
   const [words, setWords] = useState<Word[]>(initialWords);
   const [addOpen, setAddOpen] = useState(false);
   const [addSeed, setAddSeed] = useState<AddSeed>(BLANK_SEED);
@@ -104,6 +113,7 @@ export function WordListView({
       <KnownWordsPanel
         words={words}
         lessonWordIds={lessonWordIds}
+        initialView={initialView}
         onOpenDetail={(word) => setDetailWord(word)}
         onToggleStar={handleToggleStar}
         onEdit={(word) => setEditingWord(word)}
@@ -135,7 +145,11 @@ export function WordListView({
         onClose={() => setEditingWord(null)}
         onUpdated={handleUpdated}
       />
-      <WordDetailDialog word={detailWord} onClose={() => setDetailWord(null)} />
+      <WordDetailDialog
+        word={detailWord}
+        proficiency={detailWord ? proficiencyOf(statById.get(detailWord.id), now) : undefined}
+        onClose={() => setDetailWord(null)}
+      />
       <ConfirmDialog
         open={!!deletingWord}
         title="Delete this word?"

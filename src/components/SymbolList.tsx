@@ -6,8 +6,9 @@ import { clsx } from "clsx";
 import { Modal } from "./Modal";
 import { TeachContent } from "./QuizCards";
 import { BAND_STYLE } from "./learnShared";
+import { Proficiency } from "./Proficiency";
 import { buildQuiz } from "@/lib/quizzes";
-import { bandOf } from "@/lib/mastery";
+import { bandOf, proficiencyOf } from "@/lib/mastery";
 import type { QuizType } from "@/lib/decks";
 import type { ItemStatDTO } from "@/lib/quizSelection";
 import type { LanguageCode } from "@/types";
@@ -61,6 +62,7 @@ export function SymbolList({ deck, languageCode, stats }: { deck: QuizType; lang
         {openItem && (
           <div className="p-6 flex flex-col items-center gap-3 text-center">
             <TeachContent quiz={quiz} pick={{ itemId: openItem.id, variantIndex: 0 }} />
+            <Proficiency value={proficiencyOf(byId.get(openItem.id), now)} />
             <button
               type="button"
               onClick={() => setOpen(null)}
