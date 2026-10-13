@@ -107,13 +107,15 @@ export function SuggestionsPanel({
   const isSearching = quickInput.trim().length > 0;
 
   return (
-    <div className="rounded-2xl border border-border bg-surface p-4 space-y-3">
+    // Exactly one screen tall (viewport minus the sticky header, the gap above and the page's bottom
+    // padding), so scrolling to the bottom of the page shows the whole box; the list scrolls inside.
+    <div className="rounded-2xl border border-border bg-surface p-4 flex flex-col gap-3 h-[calc(100dvh-7rem)] min-h-[420px]">
       <div>
         <h3 className="text-sm font-medium">Words to learn next</h3>
         <p className="text-xs text-foreground-muted">Suggestions based on your current list</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="flex gap-2 shrink-0">
         <input
           value={quickInput}
           onChange={(e) => setQuickInput(e.target.value)}
@@ -130,7 +132,7 @@ export function SuggestionsPanel({
       </form>
 
       {isSearching ? (
-        <div className="scroll-contained space-y-2 max-h-[600px] sm:max-h-[800px] pr-2 -mr-2">
+        <div className="scroll-contained space-y-2 flex-1 min-h-0 pr-2 -mr-2">
           {searching && !searchResults && (
             <div className="space-y-2">
               {Array.from({ length: 2 }).map((_, i) => (
@@ -171,7 +173,7 @@ export function SuggestionsPanel({
       ) : (
         <>
           {categoryCounts.length > 0 && (
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1 shrink-0">
               <FilterChip
                 label="All"
                 active={categoryFilter === "all"}
@@ -225,7 +227,7 @@ export function SuggestionsPanel({
           )}
 
           {items && (
-            <div className="scroll-contained space-y-2 max-h-[600px] sm:max-h-[800px] pr-2 -mr-2">
+            <div className="scroll-contained space-y-2 flex-1 min-h-0 pr-2 -mr-2">
               {items.map((item) => {
                 const addedWord = words.find((w) => w.nativeText === item.nativeText);
                 return (
